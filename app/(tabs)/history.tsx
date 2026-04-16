@@ -1,107 +1,153 @@
-import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export type Meeting = {
-  id: string;
-  title: string;
-  date: string;
-  duration: string;
-  participants: number;
-};
-
-export const MOCK_MEETINGS: Meeting[] = [
-  {
-    id: '1',
-    title: 'Sprint Planning',
-    date: 'Today, 10:00 AM',
-    duration: '45 min',
-    participants: 5,
-  }
-];
+import { Meeting, useMeetings } from '@/hooks/use-meetings';
 
 function MeetingCard({
   meeting,
   colorScheme,
   onPress,
+  onDelete,
 }: {
   meeting: Meeting;
   colorScheme: 'light' | 'dark';
   onPress: () => void;
+  onDelete: () => void;
 }) {
   const cardBg = colorScheme === 'dark' ? '#1e2022' : '#f8f9fa';
   const borderColor = colorScheme === 'dark' ? '#2c2f31' : '#e8ebed';
 
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete Meeting',
+      `Are you sure you want to delete "${meeting.title}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onDelete },
+      ],
+    );
+  };
+
   return (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: cardBg, borderColor }]}
-      activeOpacity={0.75}
-      onPress={onPress}
-    >
-      <View style={styles.cardLeft}>
-        <View style={[styles.avatarCircle, { backgroundColor: Colors[colorScheme].tint + '22' }]}>
-          <ThemedText style={[styles.avatarIcon, { color: Colors[colorScheme].tint }]}>
-            🎙
+    <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+      {/* Tappable area navigates to detail */}
+      <TouchableOpacity style={styles.cardTappable} activeOpacity={0.75} onPress={onPress}>
+        <View style={styles.cardLeft}>
+          <View style={[styles.avatarCircle, { backgroundColor: Colors[colorScheme].tint + '22' }]}>
+            <ThemedText style={[styles.avatarIcon, { color: Colors[colorScheme].tint }]}>
+              🎙
+            </ThemedText>
+          </View>
+        </View>
+        <View style={styles.cardContent}>
+          <ThemedText style={styles.cardTitle} numberOfLines={1}>
+            {meeting.title}
+          </ThemedText>
+          <ThemedText style={[styles.cardMeta, { color: Colors[colorScheme].icon }]}>
+            {meeting.date} · {meeting.duration}
+          </ThemedText>
+          <ThemedText style={[styles.cardParticipants, { color: Colors[colorScheme].icon }]}>
+            👥 {meeting.participants} participant{meeting.participants !== 1 ? 's' : ''}
           </ThemedText>
         </View>
-      </View>
-      <View style={styles.cardContent}>
-        <ThemedText style={styles.cardTitle}>{meeting.title}</ThemedText>
-        <ThemedText style={[styles.cardMeta, { color: Colors[colorScheme].icon }]}>
-          {meeting.date} · {meeting.duration}
-        </ThemedText>
-        <ThemedText style={[styles.cardParticipants, { color: Colors[colorScheme].icon }]}>
-          👥 {meeting.participants} participants
-        </ThemedText>
-      </View>
-      <ThemedText style={[styles.chevron, { color: Colors[colorScheme].icon }]}>›</ThemedText>
-    </TouchableOpacity>
+        <ThemedText style={[styles.chevron, { color: Colors[colorScheme].icon }]}>›</ThemedText>
+      </TouchableOpacity>
+
+      {/* Delete button is a sibling — no touch event conflict */}
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={confirmDelete}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        activeOpacity={0.7}
+      >
+        <ThemedText style={styles.deleteIcon}>🗑</ThemedText>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function EmptyState({ colorScheme }: { colorScheme: 'light' | 'dark' }) {
+  return (
+    <View style={styles.emptyContainer}>
+      <ThemedText style={styles.emptyIcon}>🎙️</ThemedText>
+      <ThemedText style={styles.emptyTitle}>No meetings yet</ThemedText>
+      <ThemedText style={[styles.emptySub, { color: Colors[colorScheme].icon }]}>
+        Your saved meetings will appear here once you record one.
+      </ThemedText>
+    </View>
   );
 }
 
 export default function HistoryScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
+  const { meetings, loading, reload, deleteMeeting } = useMeetings();
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
         <View style={styles.headerRow}>
-          <ThemedText type="title" style={styles.pageTitle}>History</ThemedText>
+          <ThemedText type="title" style={styles.pageTitle}>
+            History
+          </ThemedText>
           <ThemedText style={[styles.count, { color: Colors[colorScheme].icon }]}>
-            {MOCK_MEETINGS.length} meetings
+            {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
           </ThemedText>
         </View>
-        <FlatList
-          data={MOCK_MEETINGS}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MeetingCard
-              meeting={item}
-              colorScheme={colorScheme}
-              onPress={() =>
-                router.push({
-                  pathname: '/meeting-detail' as any,
-                  params: {
-                    id: item.id,
-                    title: item.title,
-                    date: item.date,
-                    duration: item.duration,
-                    participants: String(item.participants),
-                  },
-                })
-              }
-            />
-          )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors[colorScheme].tint} />
+          </View>
+        ) : meetings.length === 0 ? (
+          <EmptyState colorScheme={colorScheme} />
+        ) : (
+          <FlatList
+            data={meetings}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <MeetingCard
+                meeting={item}
+                colorScheme={colorScheme}
+                onPress={() =>
+                  router.push({
+                    pathname: '/meeting-detail' as any,
+                    params: {
+                      id: item.id,
+                      title: item.title,
+                      date: item.date,
+                      duration: item.duration,
+                      participants: String(item.participants),
+                      notes: item.notes,
+                      participantNames: JSON.stringify(item.participantNames),
+                    },
+                  })
+                }
+                onDelete={() => deleteMeeting(item.id)}
+              />
+            )}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+          />
+        )}
       </ThemedView>
     </SafeAreaView>
   );
@@ -119,14 +165,21 @@ const styles = StyleSheet.create({
   },
   pageTitle: { fontSize: 32, fontWeight: '800' },
   count: { fontSize: 14 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingBottom: 24 },
   separator: { height: 10 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     borderRadius: 16,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardTappable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
     gap: 12,
   },
   cardLeft: { justifyContent: 'center' },
@@ -143,4 +196,20 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: 13 },
   cardParticipants: { fontSize: 12 },
   chevron: { fontSize: 24, fontWeight: '300' },
+  deleteBtn: {
+    padding: 6,
+    marginLeft: 4,
+  },
+  deleteIcon: { fontSize: 18 },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+    paddingBottom: 80,
+  },
+  emptyIcon: { fontSize: 56 },
+  emptyTitle: { fontSize: 22, fontWeight: '700' },
+  emptySub: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
 });
