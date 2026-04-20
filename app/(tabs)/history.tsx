@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -43,7 +43,6 @@ function MeetingCard({
 
   return (
     <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-      {/* Tappable area navigates to detail */}
       <TouchableOpacity style={styles.cardTappable} activeOpacity={0.75} onPress={onPress}>
         <View style={styles.cardLeft}>
           <View style={[styles.avatarCircle, { backgroundColor: Colors[colorScheme].tint + '22' }]}>
@@ -66,7 +65,6 @@ function MeetingCard({
         <ThemedText style={[styles.chevron, { color: Colors[colorScheme].icon }]}>›</ThemedText>
       </TouchableOpacity>
 
-      {/* Delete button is a sibling — no touch event conflict */}
       <TouchableOpacity
         style={styles.deleteBtn}
         onPress={confirmDelete}
@@ -96,9 +94,11 @@ export default function HistoryScreen() {
   const router = useRouter();
   const { meetings, loading, reload, deleteMeeting } = useMeetings();
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -137,6 +137,8 @@ export default function HistoryScreen() {
                       participants: String(item.participants),
                       notes: item.notes,
                       participantNames: JSON.stringify(item.participantNames),
+                      minutes: item.minutes,
+                      boardText: item.boardText,
                     },
                   })
                 }
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 16,
     borderWidth: 1,
-    overflow: 'hidden',
+    paddingRight: 12,
   },
   cardTappable: {
     flex: 1,

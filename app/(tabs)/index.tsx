@@ -19,7 +19,6 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <ThemedText type="title" style={styles.appName}>
             EchoScript
@@ -29,9 +28,7 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
 
-        {/* Buttons */}
         <View style={styles.buttonGroup}>
-          {/* Start New Meeting */}
           <TouchableOpacity
             style={[
               styles.secondaryButton,
@@ -45,7 +42,6 @@ export default function HomeScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {/* View History */}
           <TouchableOpacity
             style={[
               styles.secondaryButton,

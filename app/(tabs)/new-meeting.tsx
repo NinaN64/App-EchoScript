@@ -1,4 +1,11 @@
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import Tesseract from 'tesseract.js';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -165,7 +172,50 @@ export default function NewMeetingScreen() {
   const [seconds, setSeconds] = useState(0);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [stoppedAt, setStoppedAt] = useState(0);
+  const [transcript, setTranscript] = useState('');
+  const [interimText, setInterimText] = useState('');
+  const [boardText, setBoardText] = useState('');
+  const [isProcessingOcr, setIsProcessingOcr] = useState(false);
+  const [minutes, setMinutes] = useState('');
+  const [isGeneratingMinutes, setIsGeneratingMinutes] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useSpeechRecognitionEvent('result', (event) => {
+    const best = event.results?.[0];
+    if (!best) return;
+    if (event.isFinal) {
+      setTranscript((prev) => (prev ? prev + ' ' + best.transcript : best.transcript));
+      setInterimText('');
+    } else {
+      setInterimText(best.transcript);
+    }
+    scrollRef.current?.scrollToEnd({ animated: true });
+  });
+
+  useSpeechRecognitionEvent('error', (event) => {
+    if (event.error === 'no-speech') {
+      if (isRecording) {
+        ExpoSpeechRecognitionModule.start({
+          lang: 'en-US',
+          interimResults: true,
+          continuous: false,
+        });
+      }
+      return;
+    }
+    console.warn('Speech recognition error:', event.error, event.message);
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    if (isRecording) {
+      ExpoSpeechRecognitionModule.start({
+        lang: 'en-US',
+        interimResults: true,
+        continuous: false,
+      });
+    }
+  });
 
   useEffect(() => {
     if (isRecording) {
@@ -179,17 +229,35 @@ export default function NewMeetingScreen() {
   }, [isRecording]);
 
   const handleStop = () => {
+    ExpoSpeechRecognitionModule.stop();
     setIsRecording(false);
     setStoppedAt(seconds);
+    setInterimText('');
     setShowSaveModal(true);
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    const { status } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Microphone Permission Required',
+        'Please allow microphone access in Settings to use live transcription.',
+      );
+      return;
+    }
     setSeconds(0);
+    setTranscript('');
+    setInterimText('');
     setIsRecording(true);
+    ExpoSpeechRecognitionModule.start({
+      lang: 'en-US',
+      interimResults: true,
+      continuous: false,
+    });
   };
 
   const handleSave = async (title: string) => {
+    const fullTranscript = [transcript, interimText].filter(Boolean).join(' ');
     const meeting = {
       id: generateId(),
       title,
@@ -198,12 +266,18 @@ export default function NewMeetingScreen() {
       durationSeconds: stoppedAt,
       participants: 0,
       participantNames: [],
-      notes: '',
+      notes: fullTranscript,
       createdAt: Date.now(),
+      boardText,
+      minutes,
     };
     const ok = await saveMeeting(meeting);
     setShowSaveModal(false);
     setSeconds(0);
+    setTranscript('');
+    setInterimText('');
+    setBoardText('');
+    setMinutes('');
     if (ok) {
       router.push('/(tabs)/history');
     }
@@ -212,6 +286,69 @@ export default function NewMeetingScreen() {
   const handleDiscard = () => {
     setShowSaveModal(false);
     setSeconds(0);
+    setTranscript('');
+    setInterimText('');
+    setBoardText('');
+    setMinutes('');
+  };
+
+  const handleAddBoard = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setIsProcessingOcr(true);
+        const imageUri = result.assets[0].uri;
+        
+        const ocrResult = await Tesseract.recognize(imageUri, 'eng', {
+           errorHandler: (e) => console.log(e)
+        });
+        
+        setBoardText((prev) => (prev ? prev + '\n\n' + ocrResult.data.text : ocrResult.data.text));
+        Alert.alert('OCR Success', 'Text extracted from whiteboard!');
+      }
+    } catch (e) {
+      console.error('OCR Error', e);
+      Alert.alert('OCR Failed', 'Could not extract text from image.');
+    } finally {
+      setIsProcessingOcr(false);
+    }
+  };
+
+  const handleGenerateMinutes = async () => {
+    const fullTranscript = [transcript, interimText].filter(Boolean).join(' ');
+    if (!fullTranscript && !boardText) {
+       Alert.alert('No content', 'Please record a meeting or add a whiteboard first.');
+       return;
+    }
+    
+    setIsGeneratingMinutes(true);
+    try {
+      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) {
+        Alert.alert('Missing API Key', 'Please set EXPO_PUBLIC_GEMINI_API_KEY in your environment to use AI Summary.');
+        setIsGeneratingMinutes(false);
+        return;
+      }
+      
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const prompt = `You are an AI meeting assistant. Generate concise meeting minutes from the following content.\n\nTranscript:\n${fullTranscript || 'No transcript.'}\n\nWhiteboard text:\n${boardText || 'No whiteboard text.'}\n\nOutput only the final minutes in Markdown format without conversational filler.`;
+      
+      const result = await model.generateContent(prompt);
+      setMinutes(result.response.text());
+      Alert.alert('Success', 'Minutes generated successfully!');
+    } catch(e) {
+      console.error('Gemini Error', e);
+      Alert.alert('AI Error', 'Could not generate minutes. Make sure your API key is valid.');
+    } finally {
+      setIsGeneratingMinutes(false);
+    }
   };
 
   const accent = Colors[colorScheme].tint;
@@ -282,13 +419,25 @@ export default function NewMeetingScreen() {
               </ThemedText>
             </View>
             <ScrollView
+              ref={scrollRef}
               style={styles.transcriptScroll}
               contentContainerStyle={styles.transcriptContent}
               showsVerticalScrollIndicator={false}
             >
-              <ThemedText style={[styles.transcriptPlaceholder, { color: Colors[colorScheme].icon }]}>
-                Listening… transcript will appear here as you speak.
-              </ThemedText>
+              {!transcript && !interimText ? (
+                <ThemedText style={[styles.transcriptPlaceholder, { color: Colors[colorScheme].icon }]}>
+                  Listening… speak and your words will appear here.
+                </ThemedText>
+              ) : (
+                <ThemedText style={[styles.transcriptText, { color: Colors[colorScheme].text }]}>
+                  {transcript}
+                  {interimText ? (
+                    <ThemedText style={[styles.transcriptInterim, { color: Colors[colorScheme].icon }]}>
+                      {transcript ? ' ' : ''}{interimText}
+                    </ThemedText>
+                  ) : null}
+                </ThemedText>
+              )}
             </ScrollView>
           </View>
         ) : (
@@ -299,10 +448,24 @@ export default function NewMeetingScreen() {
                 Add Participants
               </ThemedText>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}>
-              <ThemedText style={{ fontSize: 20 }}>🪧</ThemedText>
+            <TouchableOpacity 
+              style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}
+              onPress={handleAddBoard}
+              disabled={isProcessingOcr}
+            >
+              <ThemedText style={{ fontSize: 20 }}>{isProcessingOcr ? '⏳' : '🪧'}</ThemedText>
               <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
-                Add Board
+                {isProcessingOcr ? 'Processing...' : 'Add Board'}
+              </ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}
+              onPress={handleGenerateMinutes}
+              disabled={isGeneratingMinutes}
+            >
+              <ThemedText style={{ fontSize: 20 }}>{isGeneratingMinutes ? '⏳' : '✨'}</ThemedText>
+              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
+                {isGeneratingMinutes ? 'Generating...' : 'Gen Minutes'}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}>
@@ -398,6 +561,8 @@ const styles = StyleSheet.create({
   transcriptScroll: { flex: 1 },
   transcriptContent: { paddingBottom: 8 },
   transcriptPlaceholder: { fontSize: 14, lineHeight: 22, fontStyle: 'italic' },
+  transcriptText: { fontSize: 15, lineHeight: 24 },
+  transcriptInterim: { fontSize: 15, lineHeight: 24, fontStyle: 'italic', opacity: 0.6 },
   quickActions: { flexDirection: 'row', gap: 12, width: '100%' },
   quickBtn: {
     flex: 1,

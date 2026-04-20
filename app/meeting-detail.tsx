@@ -14,7 +14,7 @@ export default function MeetingDetailScreen() {
   const isDark = colorScheme === 'dark';
   const { deleteMeeting } = useMeetings();
 
-  const { id, title, date, duration, participants, notes, participantNames } =
+  const { id, title, date, duration, participants, notes, participantNames, minutes, boardText } =
     useLocalSearchParams<{
       id: string;
       title: string;
@@ -23,6 +23,8 @@ export default function MeetingDetailScreen() {
       participants: string;
       notes: string;
       participantNames: string;
+      minutes?: string;
+      boardText?: string;
     }>();
 
   const confirmDelete = () => {
@@ -125,10 +127,32 @@ export default function MeetingDetailScreen() {
 
           {notes ? (
             <>
-              <ThemedText style={[styles.sectionLabel, { color: metaColor }]}>NOTES</ThemedText>
+              <ThemedText style={[styles.sectionLabel, { color: metaColor }]}>🎙 LIVE TRANSCRIPT</ThemedText>
               <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor }]}>
                 <ThemedText style={[styles.notesText, { color: Colors[colorScheme].text }]}>
                   {notes}
+                </ThemedText>
+              </View>
+            </>
+          ) : null}
+
+          {minutes ? (
+            <>
+              <ThemedText style={[styles.sectionLabel, { color: '#eab308' }]}>✨ AI MINUTES</ThemedText>
+              <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor: '#fef08a', borderWidth: 1.5 }]}>
+                <ThemedText style={[styles.notesText, { color: Colors[colorScheme].text }]}>
+                  {minutes}
+                </ThemedText>
+              </View>
+            </>
+          ) : null}
+
+          {boardText ? (
+            <>
+              <ThemedText style={[styles.sectionLabel, { color: metaColor }]}>📝 NOTES</ThemedText>
+              <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor }]}>
+                <ThemedText style={[styles.notesText, { color: Colors[colorScheme].text }]}>
+                  {boardText}
                 </ThemedText>
               </View>
             </>

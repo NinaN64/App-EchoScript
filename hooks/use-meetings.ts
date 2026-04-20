@@ -11,6 +11,8 @@ export type Meeting = {
   participantNames: string[];
   notes: string;
   createdAt: number;
+  minutes?: string;
+  boardText?: string;
 };
 
 const STORAGE_KEY = 'echoscript_meetings';
@@ -40,9 +42,6 @@ export function useMeetings() {
 
   const saveMeeting = useCallback(async (meeting: Meeting) => {
     try {
-      // Always read the persisted list first so we never lose meetings
-      // saved by other hook instances (e.g. the history screen) whose
-      // state may not have loaded yet in this component.
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       const existing: Meeting[] = raw ? JSON.parse(raw) : [];
       const next = [meeting, ...existing.filter((m) => m.id !== meeting.id)];

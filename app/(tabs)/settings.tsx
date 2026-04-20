@@ -54,21 +54,15 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
         <ThemedText type="title" style={styles.pageTitle}>Settings</ThemedText>
-
-        {/* Transcription */}
         <View style={[styles.section, { backgroundColor: sectionBg, borderColor: sectionBorder }]}>
           <ThemedText style={[styles.sectionHeader, { color: Colors[colorScheme].icon }]}>TRANSCRIPTION</ThemedText>
           <SettingRow icon="🌐" label="Language" value="English" tint={tint} borderColor={borderColor} />
         </View>
-
-        {/* Storage */}
         <View style={[styles.section, { backgroundColor: sectionBg, borderColor: sectionBorder }]}>
           <ThemedText style={[styles.sectionHeader, { color: Colors[colorScheme].icon }]}>STORAGE</ThemedText>
           <SettingRow icon="💾" label="Save recordings locally" toggle toggleValue={saveLocally} onToggle={setSaveLocally} tint={tint} borderColor={borderColor} />
           <SettingRow icon="☁️" label="Cloud backup" value="iCloud" tint={tint} borderColor="transparent" />
         </View>
-
-        {/* Notifications */}
         <View style={[styles.section, { backgroundColor: sectionBg, borderColor: sectionBorder }]}>
           <ThemedText style={[styles.sectionHeader, { color: Colors[colorScheme].icon }]}>NOTIFICATIONS</ThemedText>
           <SettingRow icon="🔔" label="Enable notifications" toggle toggleValue={notifications} onToggle={setNotifications} tint={tint} borderColor="transparent" />
