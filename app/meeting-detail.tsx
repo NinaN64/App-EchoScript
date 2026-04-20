@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -28,6 +28,12 @@ export default function MeetingDetailScreen() {
     }>();
 
   const confirmDelete = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+        deleteMeeting(id).then(() => router.back());
+      }
+      return;
+    }
     Alert.alert(
       'Delete Meeting',
       `Are you sure you want to delete "${title}"? This action cannot be undone.`,

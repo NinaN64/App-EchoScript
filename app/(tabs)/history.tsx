@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -31,6 +32,12 @@ function MeetingCard({
   const borderColor = colorScheme === 'dark' ? '#2c2f31' : '#e8ebed';
 
   const confirmDelete = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to delete "${meeting.title}"? This action cannot be undone.`)) {
+        onDelete();
+      }
+      return;
+    }
     Alert.alert(
       'Delete Meeting',
       `Are you sure you want to delete "${meeting.title}"? This action cannot be undone.`,
