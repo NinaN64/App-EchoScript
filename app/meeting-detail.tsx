@@ -144,7 +144,7 @@ export default function MeetingDetailScreen() {
 
           {minutes ? (
             <>
-              <ThemedText style={[styles.sectionLabel, { color: '#eab308' }]}>✨ AI MINUTES</ThemedText>
+              <ThemedText style={[styles.sectionLabel, { color: '#eab308' }]}>✨ AI SUMMARY</ThemedText>
               <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor: '#fef08a', borderWidth: 1.5 }]}>
                 <ThemedText style={[styles.notesText, { color: Colors[colorScheme].text }]}>
                   {minutes}

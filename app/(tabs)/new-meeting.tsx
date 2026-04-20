@@ -162,6 +162,85 @@ function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }:
   );
 }
 
+type InputModalProps = {
+  visible: boolean;
+  title: string;
+  placeholder: string;
+  initialValue: string;
+  colorScheme: 'light' | 'dark';
+  multiline?: boolean;
+  onSave: (val: string) => void;
+  onDiscard: () => void;
+};
+
+function InputModal({ visible, title, placeholder, initialValue, colorScheme, multiline, onSave, onDiscard }: InputModalProps) {
+  const isDark = colorScheme === 'dark';
+  const tint = Colors[colorScheme].tint;
+  const cardBg = isDark ? '#1e2022' : '#ffffff';
+  const overlaySlide = useRef(new Animated.Value(300)).current;
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    if (visible) {
+      setValue(initialValue);
+      Animated.spring(overlaySlide, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 200,
+      }).start();
+    } else {
+      Animated.timing(overlaySlide, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, overlaySlide, initialValue]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDiscard}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={styles.modalBg} onPress={Keyboard.dismiss} />
+        <Animated.View
+          style={[
+            styles.saveSheet,
+            { backgroundColor: cardBg, transform: [{ translateY: overlaySlide }] },
+            multiline && { height: 400 },
+          ]}
+        >
+          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#444' : '#ddd' }]} />
+          <ThemedText style={styles.sheetTitle}>{title}</ThemedText>
+          <View style={[styles.inputWrapper, { borderColor: isDark ? '#333' : '#ddd', backgroundColor: isDark ? '#28292b' : '#f5f5f7' }, multiline && { flex: 1 }]}>
+            <TextInput
+              style={[styles.titleInput, { color: isDark ? '#fff' : '#111' }, multiline && { flex: 1, textAlignVertical: 'top' }]}
+              placeholder={placeholder}
+              placeholderTextColor={isDark ? '#666' : '#999'}
+              value={value}
+              onChangeText={setValue}
+              multiline={multiline}
+              returnKeyType={multiline ? 'default' : 'done'}
+              onSubmitEditing={multiline ? undefined : () => { Keyboard.dismiss(); onSave(value); }}
+              autoFocus
+            />
+          </View>
+          <View style={styles.sheetButtons}>
+            <TouchableOpacity style={[styles.discardBtn, { borderColor: isDark ? '#444' : '#ddd' }]} onPress={onDiscard} activeOpacity={0.75}>
+              <ThemedText style={[styles.discardLabel, { color: Colors[colorScheme].icon }]}>Cancel</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: tint }]} onPress={() => { Keyboard.dismiss(); onSave(value); }} activeOpacity={0.85}>
+              <ThemedText style={styles.saveBtnLabel}>Save</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 export default function NewMeetingScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
@@ -172,6 +251,13 @@ export default function NewMeetingScreen() {
   const [seconds, setSeconds] = useState(0);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [stoppedAt, setStoppedAt] = useState(0);
+  const [participantNames, setParticipantNames] = useState<string[]>([]);
+  const [manualNotes, setManualNotes] = useState('');
+  const [inputConfig, setInputConfig] = useState<{
+    visible: boolean; type: 'participants' | 'notes'; title: string; placeholder: string; initial: string; multiline: boolean;
+  }>({
+    visible: false, type: 'notes', title: '', placeholder: '', initial: '', multiline: false,
+  });
   const [transcript, setTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
   const [boardText, setBoardText] = useState('');
@@ -264,11 +350,11 @@ export default function NewMeetingScreen() {
       date: friendlyDate(),
       duration: formatDuration(stoppedAt),
       durationSeconds: stoppedAt,
-      participants: 0,
-      participantNames: [],
+      participants: participantNames.length,
+      participantNames,
       notes: fullTranscript,
       createdAt: Date.now(),
-      boardText,
+      boardText: manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText,
       minutes,
     };
     const ok = await saveMeeting(meeting);
@@ -290,6 +376,38 @@ export default function NewMeetingScreen() {
     setInterimText('');
     setBoardText('');
     setMinutes('');
+    setParticipantNames([]);
+    setManualNotes('');
+  };
+
+  const handleOpenParticipants = () => {
+    setInputConfig({
+      visible: true, type: 'participants',
+      title: 'Add Participants',
+      placeholder: 'Alice, Bob, Charlie...',
+      initial: participantNames.join(', '),
+      multiline: false,
+    });
+  };
+
+  const handleOpenNotes = () => {
+    setInputConfig({
+      visible: true, type: 'notes',
+      title: 'Add Notes',
+      placeholder: 'Jot down meeting agenda or key points...',
+      initial: manualNotes,
+      multiline: true,
+    });
+  };
+
+  const handleSaveInput = (val: string) => {
+    if (inputConfig.type === 'participants') {
+      const names = val.split(',').map((n) => n.trim()).filter(Boolean);
+      setParticipantNames(names);
+    } else {
+      setManualNotes(val);
+    }
+    setInputConfig((prev) => ({ ...prev, visible: false }));
   };
 
   const handleAddBoard = async () => {
@@ -338,14 +456,15 @@ export default function NewMeetingScreen() {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
-      const prompt = `You are an AI meeting assistant. Generate concise meeting minutes from the following content.\n\nTranscript:\n${fullTranscript || 'No transcript.'}\n\nWhiteboard text:\n${boardText || 'No whiteboard text.'}\n\nOutput only the final minutes in Markdown format without conversational filler.`;
+      const combinedNotes = manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText;
+      const prompt = `You are an AI meeting assistant. Generate a concise meeting summary from the following content.\n\nTranscript:\n${fullTranscript || 'No transcript.'}\n\nNotes & Whiteboard:\n${combinedNotes || 'No notes or whiteboard text.'}\n\nOutput only the final summary in Markdown format without conversational filler.`;
       
       const result = await model.generateContent(prompt);
       setMinutes(result.response.text());
-      Alert.alert('Success', 'Minutes generated successfully!');
+      Alert.alert('Success', 'Summary generated successfully!');
     } catch(e) {
       console.error('Gemini Error', e);
-      Alert.alert('AI Error', 'Could not generate minutes. Make sure your API key is valid.');
+      Alert.alert('AI Error', 'Could not generate summary. Make sure your API key is valid.');
     } finally {
       setIsGeneratingMinutes(false);
     }
@@ -442,10 +561,10 @@ export default function NewMeetingScreen() {
           </View>
         ) : (
           <View style={styles.quickActions}>
-            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}>
+            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]} onPress={handleOpenParticipants}>
               <ThemedText style={{ fontSize: 20 }}>👥</ThemedText>
               <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
-                Add Participants
+                {participantNames.length > 0 ? `${participantNames.length} Added` : 'Add Participants'}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -465,13 +584,13 @@ export default function NewMeetingScreen() {
             >
               <ThemedText style={{ fontSize: 20 }}>{isGeneratingMinutes ? '⏳' : '✨'}</ThemedText>
               <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
-                {isGeneratingMinutes ? 'Generating...' : 'Gen Minutes'}
+                {isGeneratingMinutes ? 'Generating...' : 'Gen Summary'}
               </ThemedText>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}>
+            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]} onPress={handleOpenNotes}>
               <ThemedText style={{ fontSize: 20 }}>📝</ThemedText>
               <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
-                Add Notes
+                {manualNotes ? 'Notes Added' : 'Add Notes'}
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -484,6 +603,16 @@ export default function NewMeetingScreen() {
         colorScheme={colorScheme}
         onSave={handleSave}
         onDiscard={handleDiscard}
+      />
+      <InputModal
+        visible={inputConfig.visible}
+        title={inputConfig.title}
+        placeholder={inputConfig.placeholder}
+        initialValue={inputConfig.initial}
+        colorScheme={colorScheme}
+        multiline={inputConfig.multiline}
+        onSave={handleSaveInput}
+        onDiscard={() => setInputConfig(prev => ({ ...prev, visible: false }))}
       />
     </SafeAreaView>
   );
