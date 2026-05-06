@@ -1,4 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,10 +13,7 @@ export default function MeetingDetailScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
-  const { deleteMeeting } = useMeetings();
-
-  const { id, title, date, duration, participants, notes, participantNames, minutes, boardText } =
-    useLocalSearchParams<{
+  const params = useLocalSearchParams<{
       id: string;
       title: string;
       date: string;
@@ -26,6 +24,26 @@ export default function MeetingDetailScreen() {
       minutes?: string;
       boardText?: string;
     }>();
+
+  const { getMeeting, deleteMeeting, reload } = useMeetings();
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
+
+  const meeting = getMeeting(params.id);
+
+  const id = params.id;
+  const title = meeting?.title ?? params.title;
+  const date = meeting?.date ?? params.date;
+  const duration = meeting?.duration ?? params.duration;
+  const participants = meeting?.participants ? String(meeting.participants) : params.participants;
+  const notes = meeting?.notes ?? params.notes;
+  const participantNames = meeting?.participantNames ? JSON.stringify(meeting.participantNames) : params.participantNames;
+  const minutes = meeting?.minutes ?? params.minutes;
+  const boardText = meeting?.boardText ?? params.boardText;
 
   const confirmDelete = () => {
     if (Platform.OS === 'web') {
@@ -180,6 +198,7 @@ export default function MeetingDetailScreen() {
           <TouchableOpacity
             style={[styles.editButton, { borderColor: tint }]}
             activeOpacity={0.8}
+            onPress={() => router.push({ pathname: '/edit-meeting', params: { id } })}
           >
             <ThemedText style={[styles.editLabel, { color: tint }]}>Edit Meeting</ThemedText>
           </TouchableOpacity>
