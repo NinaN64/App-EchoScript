@@ -19,6 +19,8 @@ export default function EditMeetingScreen() {
   const { getMeeting, updateMeeting, loading } = useMeetings();
 
   const [title, setTitle] = useState('');
+  const [participants, setParticipants] = useState<string[]>([]);
+  const [newParticipant, setNewParticipant] = useState('');
   const [notes, setNotes] = useState('');
   const [minutes, setMinutes] = useState('');
   const [boardText, setBoardText] = useState('');
@@ -29,6 +31,7 @@ export default function EditMeetingScreen() {
       const meeting = getMeeting(id);
       if (meeting) {
         setTitle(meeting.title || '');
+        setParticipants(meeting.participantNames || []);
         setNotes(meeting.notes || '');
         setMinutes(meeting.minutes || '');
         setBoardText(meeting.boardText || '');
@@ -42,12 +45,16 @@ export default function EditMeetingScreen() {
     const meeting = getMeeting(id);
     if (!meeting) return;
 
+    const participantNames = participants;
+
     const success = await updateMeeting({
       ...meeting,
       title,
       notes,
       minutes,
       boardText,
+      participantNames,
+      participants: participantNames.length,
     });
 
     if (success) {
@@ -61,8 +68,8 @@ export default function EditMeetingScreen() {
     }
   };
 
-  const inputBg = isDark ? '#1e2022' : '#f8f9fa';
-  const borderColor = isDark ? '#2c2f31' : '#e8ebed';
+  const inputBg = Colors[colorScheme].background;
+  const borderColor = Colors[colorScheme].border;
   const textColor = Colors[colorScheme].text;
   const tint = Colors[colorScheme].tint;
 
@@ -122,8 +129,46 @@ export default function EditMeetingScreen() {
               value={title}
               onChangeText={setTitle}
               placeholder="Meeting Title"
-              placeholderTextColor={Colors[colorScheme].icon}
+              placeholderTextColor={Colors[colorScheme].textMuted}
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>PARTICIPANTS</ThemedText>
+            {participants.map((p, idx) => (
+              <View key={idx} style={[styles.participantRow, { backgroundColor: inputBg, borderColor }]}>
+                <ThemedText style={{ flex: 1, color: textColor }}>{p}</ThemedText>
+                <TouchableOpacity onPress={() => setParticipants(prev => prev.filter((_, i) => i !== idx))}>
+                  <ThemedText style={{ color: Colors[colorScheme].danger, fontWeight: '600' }}>Remove</ThemedText>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1, backgroundColor: inputBg, borderColor, color: textColor }]}
+                value={newParticipant}
+                onChangeText={setNewParticipant}
+                placeholder="New participant name"
+                placeholderTextColor={Colors[colorScheme].textMuted}
+                onSubmitEditing={() => {
+                  if (newParticipant.trim()) {
+                    setParticipants(prev => [...prev, newParticipant.trim()]);
+                    setNewParticipant('');
+                  }
+                }}
+              />
+              <TouchableOpacity
+                style={[styles.input, { backgroundColor: tint, borderColor: tint, justifyContent: 'center' }]}
+                onPress={() => {
+                  if (newParticipant.trim()) {
+                    setParticipants(prev => [...prev, newParticipant.trim()]);
+                    setNewParticipant('');
+                  }
+                }}
+              >
+                <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Add</ThemedText>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -133,7 +178,7 @@ export default function EditMeetingScreen() {
               value={notes}
               onChangeText={setNotes}
               placeholder="Transcript..."
-              placeholderTextColor={Colors[colorScheme].icon}
+              placeholderTextColor={Colors[colorScheme].textMuted}
               multiline
               textAlignVertical="top"
             />
@@ -142,11 +187,11 @@ export default function EditMeetingScreen() {
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>AI SUMMARY</ThemedText>
             <TextInput
-              style={[styles.input, styles.textArea, { backgroundColor: inputBg, borderColor: '#fef08a', color: textColor, borderWidth: 1.5 }]}
+              style={[styles.input, styles.textArea, { backgroundColor: inputBg, borderColor: Colors[colorScheme].warning, color: textColor, borderWidth: 1.5 }]}
               value={minutes}
               onChangeText={setMinutes}
               placeholder="AI Summary..."
-              placeholderTextColor={Colors[colorScheme].icon}
+              placeholderTextColor={Colors[colorScheme].textMuted}
               multiline
               textAlignVertical="top"
             />
@@ -159,7 +204,7 @@ export default function EditMeetingScreen() {
               value={boardText}
               onChangeText={setBoardText}
               placeholder="Board Text / Notes..."
-              placeholderTextColor={Colors[colorScheme].icon}
+              placeholderTextColor={Colors[colorScheme].textMuted}
               multiline
               textAlignVertical="top"
             />
@@ -221,8 +266,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   textArea: {
     minHeight: 120,
+  },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 4,
   },
 });

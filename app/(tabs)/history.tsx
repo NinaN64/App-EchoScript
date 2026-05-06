@@ -28,8 +28,8 @@ function MeetingCard({
   onPress: () => void;
   onDelete: () => void;
 }) {
-  const cardBg = colorScheme === 'dark' ? '#1e2022' : '#f8f9fa';
-  const borderColor = colorScheme === 'dark' ? '#2c2f31' : '#e8ebed';
+  const cardBg = Colors[colorScheme].card;
+  const borderColor = Colors[colorScheme].border;
 
   const confirmDelete = () => {
     if (Platform.OS === 'web') {
@@ -62,10 +62,10 @@ function MeetingCard({
           <ThemedText style={styles.cardTitle} numberOfLines={1}>
             {meeting.title}
           </ThemedText>
-          <ThemedText style={[styles.cardMeta, { color: Colors[colorScheme].icon }]}>
+          <ThemedText style={[styles.cardMeta, { color: Colors[colorScheme].textMuted }]}>
             {meeting.date} · {meeting.duration}
           </ThemedText>
-          <ThemedText style={[styles.cardParticipants, { color: Colors[colorScheme].icon }]}>
+          <ThemedText style={[styles.cardParticipants, { color: Colors[colorScheme].textMuted }]}>
             👥 {meeting.participants} participant{meeting.participants !== 1 ? 's' : ''}
           </ThemedText>
         </View>
@@ -89,7 +89,7 @@ function EmptyState({ colorScheme }: { colorScheme: 'light' | 'dark' }) {
     <View style={styles.emptyContainer}>
       <ThemedText style={styles.emptyIcon}>🎙️</ThemedText>
       <ThemedText style={styles.emptyTitle}>No meetings yet</ThemedText>
-      <ThemedText style={[styles.emptySub, { color: Colors[colorScheme].icon }]}>
+      <ThemedText style={[styles.emptySub, { color: Colors[colorScheme].textMuted }]}>
         Your saved meetings will appear here once you record one.
       </ThemedText>
     </View>
@@ -114,7 +114,7 @@ export default function HistoryScreen() {
           <ThemedText type="title" style={styles.pageTitle}>
             History
           </ThemedText>
-          <ThemedText style={[styles.count, { color: Colors[colorScheme].icon }]}>
+          <ThemedText style={[styles.count, { color: Colors[colorScheme].textMuted }]}>
             {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
           </ThemedText>
         </View>
@@ -183,6 +183,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     paddingRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardTappable: {
     flex: 1,

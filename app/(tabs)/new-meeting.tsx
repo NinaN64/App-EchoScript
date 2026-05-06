@@ -72,7 +72,7 @@ type SaveModalProps = {
 function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }: SaveModalProps) {
   const isDark = colorScheme === 'dark';
   const tint = Colors[colorScheme].tint;
-  const cardBg = isDark ? '#1e2022' : '#ffffff';
+  const cardBg = Colors[colorScheme].card;
   const overlaySlide = useRef(new Animated.Value(300)).current;
   const [title, setTitle] = useState('');
 
@@ -117,18 +117,18 @@ function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }:
             { backgroundColor: cardBg, transform: [{ translateY: overlaySlide }] },
           ]}
         >
-          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#444' : '#ddd' }]} />
+          <View style={[styles.sheetHandle, { backgroundColor: Colors[colorScheme].border }]} />
 
           <ThemedText style={styles.sheetTitle}>Save Meeting</ThemedText>
-          <ThemedText style={[styles.sheetSub, { color: Colors[colorScheme].icon }]}>
+          <ThemedText style={[styles.sheetSub, { color: Colors[colorScheme].textMuted }]}>
             Duration: {formatDuration(durationSeconds)}
           </ThemedText>
 
-          <View style={[styles.inputWrapper, { borderColor: isDark ? '#333' : '#ddd', backgroundColor: isDark ? '#28292b' : '#f5f5f7' }]}>
+          <View style={[styles.inputWrapper, { borderColor: Colors[colorScheme].border, backgroundColor: Colors[colorScheme].background }]}>
             <TextInput
-              style={[styles.titleInput, { color: isDark ? '#fff' : '#111' }]}
+              style={[styles.titleInput, { color: Colors[colorScheme].text }]}
               placeholder="Meeting title…"
-              placeholderTextColor={isDark ? '#666' : '#999'}
+              placeholderTextColor={Colors[colorScheme].textMuted}
               value={title}
               onChangeText={setTitle}
               returnKeyType="done"
@@ -139,11 +139,11 @@ function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }:
 
           <View style={styles.sheetButtons}>
             <TouchableOpacity
-              style={[styles.discardBtn, { borderColor: isDark ? '#444' : '#ddd' }]}
+              style={[styles.discardBtn, { borderColor: Colors[colorScheme].border }]}
               onPress={onDiscard}
               activeOpacity={0.75}
             >
-              <ThemedText style={[styles.discardLabel, { color: Colors[colorScheme].icon }]}>
+              <ThemedText style={[styles.discardLabel, { color: Colors[colorScheme].textMuted }]}>
                 Discard
               </ThemedText>
             </TouchableOpacity>
@@ -176,7 +176,7 @@ type InputModalProps = {
 function InputModal({ visible, title, placeholder, initialValue, colorScheme, multiline, onSave, onDiscard }: InputModalProps) {
   const isDark = colorScheme === 'dark';
   const tint = Colors[colorScheme].tint;
-  const cardBg = isDark ? '#1e2022' : '#ffffff';
+  const cardBg = Colors[colorScheme].card;
   const overlaySlide = useRef(new Animated.Value(300)).current;
   const [value, setValue] = useState(initialValue);
 
@@ -212,13 +212,13 @@ function InputModal({ visible, title, placeholder, initialValue, colorScheme, mu
             multiline && { height: 400 },
           ]}
         >
-          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#444' : '#ddd' }]} />
+          <View style={[styles.sheetHandle, { backgroundColor: Colors[colorScheme].border }]} />
           <ThemedText style={styles.sheetTitle}>{title}</ThemedText>
-          <View style={[styles.inputWrapper, { borderColor: isDark ? '#333' : '#ddd', backgroundColor: isDark ? '#28292b' : '#f5f5f7' }, multiline && { flex: 1 }]}>
+          <View style={[styles.inputWrapper, { borderColor: Colors[colorScheme].border, backgroundColor: Colors[colorScheme].background }, multiline && { flex: 1 }]}>
             <TextInput
-              style={[styles.titleInput, { color: isDark ? '#fff' : '#111' }, multiline && { flex: 1, textAlignVertical: 'top' }]}
+              style={[styles.titleInput, { color: Colors[colorScheme].text }, multiline && { flex: 1, textAlignVertical: 'top' }]}
               placeholder={placeholder}
-              placeholderTextColor={isDark ? '#666' : '#999'}
+              placeholderTextColor={Colors[colorScheme].textMuted}
               value={value}
               onChangeText={setValue}
               multiline={multiline}
@@ -228,10 +228,106 @@ function InputModal({ visible, title, placeholder, initialValue, colorScheme, mu
             />
           </View>
           <View style={styles.sheetButtons}>
-            <TouchableOpacity style={[styles.discardBtn, { borderColor: isDark ? '#444' : '#ddd' }]} onPress={onDiscard} activeOpacity={0.75}>
-              <ThemedText style={[styles.discardLabel, { color: Colors[colorScheme].icon }]}>Cancel</ThemedText>
+            <TouchableOpacity style={[styles.discardBtn, { borderColor: Colors[colorScheme].border }]} onPress={onDiscard} activeOpacity={0.75}>
+              <ThemedText style={[styles.discardLabel, { color: Colors[colorScheme].textMuted }]}>Cancel</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: tint }]} onPress={() => { Keyboard.dismiss(); onSave(value); }} activeOpacity={0.85}>
+              <ThemedText style={styles.saveBtnLabel}>Save</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+type ParticipantsModalProps = {
+  visible: boolean;
+  initialParticipants: string[];
+  colorScheme: 'light' | 'dark';
+  onSave: (participants: string[]) => void;
+  onDiscard: () => void;
+};
+
+function ParticipantsModal({ visible, initialParticipants, colorScheme, onSave, onDiscard }: ParticipantsModalProps) {
+  const isDark = colorScheme === 'dark';
+  const tint = Colors[colorScheme].tint;
+  const cardBg = Colors[colorScheme].card;
+  const overlaySlide = useRef(new Animated.Value(300)).current;
+  const [participants, setParticipants] = useState<string[]>([]);
+  const [newParticipant, setNewParticipant] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setParticipants(initialParticipants);
+      setNewParticipant('');
+      Animated.spring(overlaySlide, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 200,
+      }).start();
+    } else {
+      Animated.timing(overlaySlide, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, overlaySlide, initialParticipants]);
+
+  const addParticipant = () => {
+    if (newParticipant.trim()) {
+      setParticipants(prev => [...prev, newParticipant.trim()]);
+      setNewParticipant('');
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDiscard}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable style={styles.modalBg} onPress={Keyboard.dismiss} />
+        <Animated.View style={[styles.saveSheet, { backgroundColor: cardBg, transform: [{ translateY: overlaySlide }], height: 500 }]}>
+          <View style={[styles.sheetHandle, { backgroundColor: Colors[colorScheme].border }]} />
+          <ThemedText style={styles.sheetTitle}>Add Participants</ThemedText>
+          
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            <View style={{ gap: 8, paddingBottom: 20 }}>
+              {participants.map((p, idx) => (
+                <View key={idx} style={[styles.participantRow, { backgroundColor: Colors[colorScheme].background, borderColor: Colors[colorScheme].border }]}>
+                  <ThemedText style={{ flex: 1, color: Colors[colorScheme].text }}>{p}</ThemedText>
+                  <TouchableOpacity onPress={() => setParticipants(prev => prev.filter((_, i) => i !== idx))}>
+                    <ThemedText style={{ color: Colors[colorScheme].danger, fontWeight: '600' }}>Remove</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <View style={[styles.inputWrapper, { flex: 1, borderColor: Colors[colorScheme].border, backgroundColor: Colors[colorScheme].background }]}>
+                  <TextInput
+                    style={[styles.titleInput, { color: Colors[colorScheme].text }]}
+                    placeholder="New participant name"
+                    placeholderTextColor={Colors[colorScheme].textMuted}
+                    value={newParticipant}
+                    onChangeText={setNewParticipant}
+                    onSubmitEditing={addParticipant}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={{ backgroundColor: tint, paddingHorizontal: 16, borderRadius: 14, justifyContent: 'center' }}
+                  onPress={addParticipant}
+                >
+                  <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Add</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.sheetButtons}>
+            <TouchableOpacity style={[styles.discardBtn, { borderColor: Colors[colorScheme].border }]} onPress={onDiscard} activeOpacity={0.75}>
+              <ThemedText style={[styles.discardLabel, { color: Colors[colorScheme].textMuted }]}>Cancel</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: tint }]} onPress={() => { Keyboard.dismiss(); onSave(participants); }} activeOpacity={0.85}>
               <ThemedText style={styles.saveBtnLabel}>Save</ThemedText>
             </TouchableOpacity>
           </View>
@@ -253,8 +349,9 @@ export default function NewMeetingScreen() {
   const [stoppedAt, setStoppedAt] = useState(0);
   const [participantNames, setParticipantNames] = useState<string[]>([]);
   const [manualNotes, setManualNotes] = useState('');
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [inputConfig, setInputConfig] = useState<{
-    visible: boolean; type: 'participants' | 'notes'; title: string; placeholder: string; initial: string; multiline: boolean;
+    visible: boolean; type: 'notes'; title: string; placeholder: string; initial: string; multiline: boolean;
   }>({
     visible: false, type: 'notes', title: '', placeholder: '', initial: '', multiline: false,
   });
@@ -381,13 +478,7 @@ export default function NewMeetingScreen() {
   };
 
   const handleOpenParticipants = () => {
-    setInputConfig({
-      visible: true, type: 'participants',
-      title: 'Add Participants',
-      placeholder: 'Alice, Bob, Charlie...',
-      initial: participantNames.join(', '),
-      multiline: false,
-    });
+    setShowParticipantsModal(true);
   };
 
   const handleOpenNotes = () => {
@@ -400,13 +491,8 @@ export default function NewMeetingScreen() {
     });
   };
 
-  const handleSaveInput = (val: string) => {
-    if (inputConfig.type === 'participants') {
-      const names = val.split(',').map((n) => n.trim()).filter(Boolean);
-      setParticipantNames(names);
-    } else {
-      setManualNotes(val);
-    }
+  const handleSaveNotes = (val: string) => {
+    setManualNotes(val);
     setInputConfig((prev) => ({ ...prev, visible: false }));
   };
 
@@ -471,8 +557,8 @@ export default function NewMeetingScreen() {
   };
 
   const accent = Colors[colorScheme].tint;
-  const cardBg = isDark ? '#1e2022' : '#f8f9fa';
-  const borderColor = isDark ? '#2c2f31' : '#e8ebed';
+  const cardBg = Colors[colorScheme].card;
+  const borderColor = Colors[colorScheme].border;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -498,14 +584,14 @@ export default function NewMeetingScreen() {
             </ThemedText>
             {isRecording && (
               <View style={styles.liveRow}>
-                <View style={[styles.liveDot, { backgroundColor: '#ef4444' }]} />
-                <ThemedText style={[styles.liveLabel, { color: '#ef4444' }]}>LIVE</ThemedText>
+                <View style={[styles.liveDot, { backgroundColor: Colors[colorScheme].danger }]} />
+                <ThemedText style={[styles.liveLabel, { color: Colors[colorScheme].danger }]}>LIVE</ThemedText>
               </View>
             )}
           </View>
 
           <View style={styles.controlsCol}>
-            <ThemedText style={[styles.statusText, { color: Colors[colorScheme].icon }]}>
+            <ThemedText style={[styles.statusText, { color: Colors[colorScheme].textMuted }]}>
               {isRecording ? 'Recording in progress…' : 'Ready to record'}
             </ThemedText>
 
@@ -519,7 +605,7 @@ export default function NewMeetingScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.recordButton, { backgroundColor: '#ef4444' }]}
+                style={[styles.recordButton, { backgroundColor: Colors[colorScheme].danger }]}
                 onPress={handleStop}
                 activeOpacity={0.85}
               >
@@ -532,8 +618,8 @@ export default function NewMeetingScreen() {
         {isRecording ? (
           <View style={[styles.transcriptCard, { backgroundColor: cardBg, borderColor }]}>
             <View style={styles.transcriptHeader}>
-              <View style={[styles.liveDot, { backgroundColor: '#ef4444' }]} />
-              <ThemedText style={[styles.transcriptTitle, { color: Colors[colorScheme].icon }]}>
+              <View style={[styles.liveDot, { backgroundColor: Colors[colorScheme].danger }]} />
+              <ThemedText style={[styles.transcriptTitle, { color: Colors[colorScheme].textMuted }]}>
                 LIVE TRANSCRIPT
               </ThemedText>
             </View>
@@ -544,7 +630,7 @@ export default function NewMeetingScreen() {
               showsVerticalScrollIndicator={false}
             >
               {!transcript && !interimText ? (
-                <ThemedText style={[styles.transcriptPlaceholder, { color: Colors[colorScheme].icon }]}>
+                <ThemedText style={[styles.transcriptPlaceholder, { color: Colors[colorScheme].textMuted }]}>
                   Listening… speak and your words will appear here.
                 </ThemedText>
               ) : (
@@ -561,35 +647,35 @@ export default function NewMeetingScreen() {
           </View>
         ) : (
           <View style={styles.quickActions}>
-            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]} onPress={handleOpenParticipants}>
+            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]} onPress={handleOpenParticipants}>
               <ThemedText style={{ fontSize: 20 }}>👥</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
+              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
                 {participantNames.length > 0 ? `${participantNames.length} Added` : 'Add Participants'}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}
+              style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]}
               onPress={handleAddBoard}
               disabled={isProcessingOcr}
             >
               <ThemedText style={{ fontSize: 20 }}>{isProcessingOcr ? '⏳' : '🪧'}</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
+              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
                 {isProcessingOcr ? 'Processing...' : 'Add Board'}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]}
+              style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]}
               onPress={handleGenerateMinutes}
               disabled={isGeneratingMinutes}
             >
               <ThemedText style={{ fontSize: 20 }}>{isGeneratingMinutes ? '⏳' : '✨'}</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
+              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
                 {isGeneratingMinutes ? 'Generating...' : 'Gen Summary'}
               </ThemedText>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].icon + '44' }]} onPress={handleOpenNotes}>
+            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]} onPress={handleOpenNotes}>
               <ThemedText style={{ fontSize: 20 }}>📝</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].icon }]}>
+              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
                 {manualNotes ? 'Notes Added' : 'Add Notes'}
               </ThemedText>
             </TouchableOpacity>
@@ -611,8 +697,18 @@ export default function NewMeetingScreen() {
         initialValue={inputConfig.initial}
         colorScheme={colorScheme}
         multiline={inputConfig.multiline}
-        onSave={handleSaveInput}
+        onSave={handleSaveNotes}
         onDiscard={() => setInputConfig(prev => ({ ...prev, visible: false }))}
+      />
+      <ParticipantsModal
+        visible={showParticipantsModal}
+        initialParticipants={participantNames}
+        colorScheme={colorScheme}
+        onSave={(names) => {
+          setParticipantNames(names);
+          setShowParticipantsModal(false);
+        }}
+        onDiscard={() => setShowParticipantsModal(false)}
       />
     </SafeAreaView>
   );
@@ -770,4 +866,12 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   saveBtnLabel: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+    marginBottom: 4,
+  },
 });

@@ -77,9 +77,9 @@ export default function MeetingDetailScreen() {
     }
   })();
 
-  const cardBg = isDark ? '#1e2022' : '#f8f9fa';
-  const borderColor = isDark ? '#2c2f31' : '#e8ebed';
-  const metaColor = Colors[colorScheme].icon;
+  const cardBg = Colors[colorScheme].card;
+  const borderColor = Colors[colorScheme].border;
+  const metaColor = Colors[colorScheme].textMuted;
   const tint = Colors[colorScheme].tint;
 
   const infoPills: { label: string; value: string }[] = [
@@ -162,8 +162,8 @@ export default function MeetingDetailScreen() {
 
           {minutes ? (
             <>
-              <ThemedText style={[styles.sectionLabel, { color: '#eab308' }]}>✨ AI SUMMARY</ThemedText>
-              <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor: '#fef08a', borderWidth: 1.5 }]}>
+              <ThemedText style={[styles.sectionLabel, { color: Colors[colorScheme].warning }]}>✨ AI SUMMARY</ThemedText>
+              <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor: Colors[colorScheme].warning, borderWidth: 1.5 }]}>
                 <ThemedText style={[styles.notesText, { color: Colors[colorScheme].text }]}>
                   {minutes}
                 </ThemedText>
@@ -204,11 +204,11 @@ export default function MeetingDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.deleteButton]}
+            style={[styles.deleteButton, { borderColor: Colors[colorScheme].danger }]}
             onPress={confirmDelete}
             activeOpacity={0.8}
           >
-            <ThemedText style={styles.deleteLabel}>🗑  Delete Meeting</ThemedText>
+            <ThemedText style={[styles.deleteLabel, { color: Colors[colorScheme].danger }]}>🗑  Delete Meeting</ThemedText>
           </TouchableOpacity>
         </ScrollView>
       </ThemedView>
@@ -253,6 +253,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   infoRow: {
     flexDirection: 'row',
@@ -282,6 +287,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   notesText: { fontSize: 15, lineHeight: 24 },
   actionButton: {
@@ -313,9 +323,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 50,
     borderWidth: 1.5,
-    borderColor: '#ef4444',
     gap: 10,
     marginTop: 4,
   },
-  deleteLabel: { fontSize: 16, fontWeight: '700', color: '#ef4444' },
+  deleteLabel: { fontSize: 16, fontWeight: '700' },
 });
