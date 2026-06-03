@@ -13,6 +13,7 @@ export type Meeting = {
   createdAt: number;
   minutes?: string;
   boardText?: string;
+  imageUris?: string[];
 };
 
 const STORAGE_KEY = 'echoscript_meetings';

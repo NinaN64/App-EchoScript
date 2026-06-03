@@ -357,6 +357,7 @@ export default function NewMeetingScreen() {
   const [transcript, setTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
   const [boardText, setBoardText] = useState('');
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -451,6 +452,7 @@ export default function NewMeetingScreen() {
       notes: fullTranscript,
       createdAt: Date.now(),
       boardText: combinedNotes,
+      imageUris,
     };
     const ok = await saveMeeting(meeting);
     
@@ -459,6 +461,7 @@ export default function NewMeetingScreen() {
     setTranscript('');
     setInterimText('');
     setBoardText('');
+    setImageUris([]);
     if (ok) {
       router.push('/(tabs)/history');
     }
@@ -470,6 +473,7 @@ export default function NewMeetingScreen() {
     setTranscript('');
     setInterimText('');
     setBoardText('');
+    setImageUris([]);
     setParticipantNames([]);
     setManualNotes('');
   };
@@ -504,6 +508,7 @@ export default function NewMeetingScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setIsProcessingOcr(true);
         const imageUri = result.assets[0].uri;
+        setImageUris((prev) => [...prev, imageUri]);
         
         const ocrResult = await Tesseract.recognize(imageUri, 'eng', {
            errorHandler: (e) => console.log(e)

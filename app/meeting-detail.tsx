@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -171,18 +171,6 @@ export default function MeetingDetailScreen() {
             </>
           ) : null}
 
-          <ThemedText style={[styles.sectionLabel, { color: metaColor }]}>CONTENT</ThemedText>
-
-          {(['Live Transcript', 'Uploaded Images'] as const).map((label) => (
-            <TouchableOpacity
-              key={label}
-              style={[styles.actionButton, { backgroundColor: cardBg, borderColor }]}
-              activeOpacity={0.75}
-            >
-              <ThemedText style={styles.actionLabel}>{label}</ThemedText>
-              <ThemedText style={[styles.chevron, { color: metaColor }]}>›</ThemedText>
-            </TouchableOpacity>
-          ))}
 
           <TouchableOpacity
             style={[styles.editButton, { borderColor: tint }]}

@@ -10,7 +10,6 @@ An AI-powered meeting assistant that transcribes your meetings in real time and 
 - **Whiteboard OCR** — take a photo of a whiteboard and it extracts the text automatically (Tesseract.js)
 - **Meeting history** — everything saved locally on device via AsyncStorage
 
-
 ---
 
 ## Running the app
