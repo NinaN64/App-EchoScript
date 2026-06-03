@@ -42,7 +42,6 @@ export default function MeetingDetailScreen() {
   const participants = meeting?.participants ? String(meeting.participants) : params.participants;
   const notes = meeting?.notes ?? params.notes;
   const participantNames = meeting?.participantNames ? JSON.stringify(meeting.participantNames) : params.participantNames;
-  const minutes = meeting?.minutes ?? params.minutes;
   const boardText = meeting?.boardText ?? params.boardText;
 
   const confirmDelete = () => {
@@ -160,16 +159,6 @@ export default function MeetingDetailScreen() {
             </>
           ) : null}
 
-          {minutes ? (
-            <>
-              <ThemedText style={[styles.sectionLabel, { color: Colors[colorScheme].warning }]}>✨ AI SUMMARY</ThemedText>
-              <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor: Colors[colorScheme].warning, borderWidth: 1.5 }]}>
-                <ThemedText style={[styles.notesText, { color: Colors[colorScheme].text }]}>
-                  {minutes}
-                </ThemedText>
-              </View>
-            </>
-          ) : null}
 
           {boardText ? (
             <>

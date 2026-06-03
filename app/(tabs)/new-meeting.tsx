@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import Tesseract from 'tesseract.js';
 import {
   ExpoSpeechRecognitionModule,
@@ -359,8 +358,6 @@ export default function NewMeetingScreen() {
   const [interimText, setInterimText] = useState('');
   const [boardText, setBoardText] = useState('');
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);
-  const [minutes, setMinutes] = useState('');
-  const [isGeneratingMinutes, setIsGeneratingMinutes] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -441,6 +438,8 @@ export default function NewMeetingScreen() {
 
   const handleSave = async (title: string) => {
     const fullTranscript = [transcript, interimText].filter(Boolean).join(' ');
+    const combinedNotes = manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText;
+    
     const meeting = {
       id: generateId(),
       title,
@@ -451,16 +450,15 @@ export default function NewMeetingScreen() {
       participantNames,
       notes: fullTranscript,
       createdAt: Date.now(),
-      boardText: manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText,
-      minutes,
+      boardText: combinedNotes,
     };
     const ok = await saveMeeting(meeting);
+    
     setShowSaveModal(false);
     setSeconds(0);
     setTranscript('');
     setInterimText('');
     setBoardText('');
-    setMinutes('');
     if (ok) {
       router.push('/(tabs)/history');
     }
@@ -472,7 +470,6 @@ export default function NewMeetingScreen() {
     setTranscript('');
     setInterimText('');
     setBoardText('');
-    setMinutes('');
     setParticipantNames([]);
     setManualNotes('');
   };
@@ -523,38 +520,7 @@ export default function NewMeetingScreen() {
     }
   };
 
-  const handleGenerateMinutes = async () => {
-    const fullTranscript = [transcript, interimText].filter(Boolean).join(' ');
-    if (!fullTranscript && !boardText) {
-       Alert.alert('No content', 'Please record a meeting or add a whiteboard first.');
-       return;
-    }
-    
-    setIsGeneratingMinutes(true);
-    try {
-      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) {
-        Alert.alert('Missing API Key', 'Please set EXPO_PUBLIC_GEMINI_API_KEY in your environment to use AI Summary.');
-        setIsGeneratingMinutes(false);
-        return;
-      }
-      
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
-      const combinedNotes = manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText;
-      const prompt = `You are an AI meeting assistant. Generate a concise meeting summary from the following content.\n\nTranscript:\n${fullTranscript || 'No transcript.'}\n\nNotes & Whiteboard:\n${combinedNotes || 'No notes or whiteboard text.'}\n\nOutput only the final summary in Markdown format without conversational filler.`;
-      
-      const result = await model.generateContent(prompt);
-      setMinutes(result.response.text());
-      Alert.alert('Success', 'Summary generated successfully!');
-    } catch(e) {
-      console.error('Gemini Error', e);
-      Alert.alert('AI Error', 'Could not generate summary. Make sure your API key is valid.');
-    } finally {
-      setIsGeneratingMinutes(false);
-    }
-  };
+  // AI summary generation logic removed (replaced by auto-summary in handleSave)
 
   const accent = Colors[colorScheme].tint;
   const cardBg = Colors[colorScheme].card;
@@ -661,16 +627,6 @@ export default function NewMeetingScreen() {
               <ThemedText style={{ fontSize: 20 }}>{isProcessingOcr ? '⏳' : '🪧'}</ThemedText>
               <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
                 {isProcessingOcr ? 'Processing...' : 'Add Board'}
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]}
-              onPress={handleGenerateMinutes}
-              disabled={isGeneratingMinutes}
-            >
-              <ThemedText style={{ fontSize: 20 }}>{isGeneratingMinutes ? '⏳' : '✨'}</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
-                {isGeneratingMinutes ? 'Generating...' : 'Gen Summary'}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]} onPress={handleOpenNotes}>

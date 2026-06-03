@@ -22,7 +22,6 @@ export default function EditMeetingScreen() {
   const [participants, setParticipants] = useState<string[]>([]);
   const [newParticipant, setNewParticipant] = useState('');
   const [notes, setNotes] = useState('');
-  const [minutes, setMinutes] = useState('');
   const [boardText, setBoardText] = useState('');
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);
 
@@ -33,7 +32,6 @@ export default function EditMeetingScreen() {
         setTitle(meeting.title || '');
         setParticipants(meeting.participantNames || []);
         setNotes(meeting.notes || '');
-        setMinutes(meeting.minutes || '');
         setBoardText(meeting.boardText || '');
       } else {
         router.back();
@@ -51,7 +49,6 @@ export default function EditMeetingScreen() {
       ...meeting,
       title,
       notes,
-      minutes,
       boardText,
       participantNames,
       participants: participantNames.length,
@@ -184,18 +181,6 @@ export default function EditMeetingScreen() {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>AI SUMMARY</ThemedText>
-            <TextInput
-              style={[styles.input, styles.textArea, { backgroundColor: inputBg, borderColor: Colors[colorScheme].warning, color: textColor, borderWidth: 1.5 }]}
-              value={minutes}
-              onChangeText={setMinutes}
-              placeholder="AI Summary..."
-              placeholderTextColor={Colors[colorScheme].textMuted}
-              multiline
-              textAlignVertical="top"
-            />
-          </View>
 
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>NOTES</ThemedText>

@@ -1,6 +1,6 @@
 # EchoScript 🎙️
 
-An AI-powered meeting assistant that transcribes your meetings in real time, reads whiteboards with OCR, and generates summaries using Google Gemini.
+An AI-powered meeting assistant that transcribes your meetings in real time and reads whiteboards with OCR.
 
 ---
 
@@ -8,14 +8,8 @@ An AI-powered meeting assistant that transcribes your meetings in real time, rea
 
 - **Live transcription** — uses the device's built-in speech engine, keeps listening even through silences
 - **Whiteboard OCR** — take a photo of a whiteboard and it extracts the text automatically (Tesseract.js)
-- **AI summary** — sends transcript + notes to Gemini 1.5 Flash and gets back a clean summary
 - **Meeting history** — everything saved locally on device via AsyncStorage
 
-To use AI summaries, create a `.env` file with:
-```
-EXPO_PUBLIC_GEMINI_API_KEY=your_key_here
-```
-Get a free key at [aistudio.google.com](https://aistudio.google.com).
 
 ---
 
