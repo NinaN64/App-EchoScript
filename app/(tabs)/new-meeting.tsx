@@ -1,10 +1,5 @@
-import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import Tesseract from 'tesseract.js';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -21,12 +16,33 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Tesseract from 'tesseract.js';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMeetings } from '@/hooks/use-meetings';
+
+// implementation of speech-to-text fallback
+let ExpoSpeechRecognitionModule: any = {
+  start: () => {},
+  stop: () => {},
+  requestPermissionsAsync: async () => ({ status: 'denied' }),
+};
+let useSpeechRecognitionEvent: any = () => {};
+let isSpeechRecognitionSupported = false;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const SpeechModule = require('expo-speech-recognition');
+  if (SpeechModule?.ExpoSpeechRecognitionModule) {
+    ExpoSpeechRecognitionModule = SpeechModule.ExpoSpeechRecognitionModule;
+    useSpeechRecognitionEvent = SpeechModule.useSpeechRecognitionEvent;
+    isSpeechRecognitionSupported = true;
+  }
+} catch {
+}
 
 function formatTime(s: number) {
   const h = Math.floor(s / 3600);
@@ -69,7 +85,6 @@ type SaveModalProps = {
 };
 
 function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }: SaveModalProps) {
-  const isDark = colorScheme === 'dark';
   const tint = Colors[colorScheme].tint;
   const cardBg = Colors[colorScheme].card;
   const overlaySlide = useRef(new Animated.Value(300)).current;
@@ -173,7 +188,6 @@ type InputModalProps = {
 };
 
 function InputModal({ visible, title, placeholder, initialValue, colorScheme, multiline, onSave, onDiscard }: InputModalProps) {
-  const isDark = colorScheme === 'dark';
   const tint = Colors[colorScheme].tint;
   const cardBg = Colors[colorScheme].card;
   const overlaySlide = useRef(new Animated.Value(300)).current;
@@ -249,7 +263,6 @@ type ParticipantsModalProps = {
 };
 
 function ParticipantsModal({ visible, initialParticipants, colorScheme, onSave, onDiscard }: ParticipantsModalProps) {
-  const isDark = colorScheme === 'dark';
   const tint = Colors[colorScheme].tint;
   const cardBg = Colors[colorScheme].card;
   const overlaySlide = useRef(new Animated.Value(300)).current;
@@ -289,7 +302,7 @@ function ParticipantsModal({ visible, initialParticipants, colorScheme, onSave, 
         <Animated.View style={[styles.saveSheet, { backgroundColor: cardBg, transform: [{ translateY: overlaySlide }], height: 500 }]}>
           <View style={[styles.sheetHandle, { backgroundColor: Colors[colorScheme].border }]} />
           <ThemedText style={styles.sheetTitle}>Add Participants</ThemedText>
-          
+
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
             <View style={{ gap: 8, paddingBottom: 20 }}>
               {participants.map((p, idx) => (
@@ -300,7 +313,7 @@ function ParticipantsModal({ visible, initialParticipants, colorScheme, onSave, 
                   </TouchableOpacity>
                 </View>
               ))}
-              
+
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 <View style={[styles.inputWrapper, { flex: 1, borderColor: Colors[colorScheme].border, backgroundColor: Colors[colorScheme].background }]}>
                   <TextInput
@@ -339,7 +352,6 @@ function ParticipantsModal({ visible, initialParticipants, colorScheme, onSave, 
 export default function NewMeetingScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
   const { saveMeeting } = useMeetings();
 
   const [isRecording, setIsRecording] = useState(false);
@@ -362,7 +374,8 @@ export default function NewMeetingScreen() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
-  useSpeechRecognitionEvent('result', (event) => {
+  // implementation of speech-to-text
+  useSpeechRecognitionEvent('result', (event: any) => {
     const best = event.results?.[0];
     if (!best) return;
     if (event.isFinal) {
@@ -374,7 +387,7 @@ export default function NewMeetingScreen() {
     scrollRef.current?.scrollToEnd({ animated: true });
   });
 
-  useSpeechRecognitionEvent('error', (event) => {
+  useSpeechRecognitionEvent('error', (event: any) => {
     if (event.error === 'no-speech') {
       if (isRecording) {
         ExpoSpeechRecognitionModule.start({
@@ -417,7 +430,15 @@ export default function NewMeetingScreen() {
     setShowSaveModal(true);
   };
 
+  // start speech-to-text
   const handleStart = async () => {
+    if (!isSpeechRecognitionSupported) {
+      Alert.alert(
+        'Feature Unavailable',
+        'Live transcription requires custom native speech recognition APIs, which are not available in standard Expo Go or Web. Please build and run a Development Build (npx expo run:ios or run:android) to use this feature.'
+      );
+      return;
+    }
     const { status } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
@@ -440,7 +461,7 @@ export default function NewMeetingScreen() {
   const handleSave = async (title: string) => {
     const fullTranscript = [transcript, interimText].filter(Boolean).join(' ');
     const combinedNotes = manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText;
-    
+
     const meeting = {
       id: generateId(),
       title,
@@ -455,7 +476,7 @@ export default function NewMeetingScreen() {
       imageUris,
     };
     const ok = await saveMeeting(meeting);
-    
+
     setShowSaveModal(false);
     setSeconds(0);
     setTranscript('');
@@ -486,7 +507,7 @@ export default function NewMeetingScreen() {
     setInputConfig({
       visible: true, type: 'notes',
       title: 'Add Notes',
-      placeholder: 'Jot down meeting agenda or key points...',
+      placeholder: 'Write down meeting agenda or key points...',
       initial: manualNotes,
       multiline: true,
     });
@@ -509,11 +530,12 @@ export default function NewMeetingScreen() {
         setIsProcessingOcr(true);
         const imageUri = result.assets[0].uri;
         setImageUris((prev) => [...prev, imageUri]);
-        
+
+        // implementation of image recognition
         const ocrResult = await Tesseract.recognize(imageUri, 'eng', {
-           errorHandler: (e) => console.log(e)
+          errorHandler: (e) => console.log(e)
         });
-        
+
         setBoardText((prev) => (prev ? prev + '\n\n' + ocrResult.data.text : ocrResult.data.text));
         Alert.alert('OCR Success', 'Text extracted from whiteboard!');
       }
@@ -524,8 +546,6 @@ export default function NewMeetingScreen() {
       setIsProcessingOcr(false);
     }
   };
-
-  // AI summary generation logic removed (replaced by auto-summary in handleSave)
 
   const accent = Colors[colorScheme].tint;
   const cardBg = Colors[colorScheme].card;
@@ -583,6 +603,11 @@ export default function NewMeetingScreen() {
                 <ThemedText style={styles.recordButtonText}>⏹  Stop</ThemedText>
               </TouchableOpacity>
             )}
+            {!isSpeechRecognitionSupported && !isRecording && (
+              <ThemedText style={{ color: Colors[colorScheme].warning, fontSize: 11, marginTop: 4 }}>
+                ⚠️ Needs Development Build
+              </ThemedText>
+            )}
           </View>
         </View>
 
@@ -624,7 +649,7 @@ export default function NewMeetingScreen() {
                 {participantNames.length > 0 ? `${participantNames.length} Added` : 'Add Participants'}
               </ThemedText>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]}
               onPress={handleAddBoard}
               disabled={isProcessingOcr}

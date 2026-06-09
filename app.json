@@ -61,7 +61,9 @@
           "photosPermission": "Allow EchoScript to access your photos for whiteboards.",
           "cameraPermission": "Allow EchoScript to access your camera to take snaps of whiteboards."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

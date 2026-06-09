@@ -1,4 +1,4 @@
-import { StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 
@@ -43,7 +43,6 @@ export default function SettingsScreen() {
   const tint = Colors[colorScheme].tint;
   const borderColor = Colors[colorScheme].icon + '22';
 
-  const [autoTranscribe, setAutoTranscribe] = useState(true);
   const [notifications, setNotifications] = useState(true);
   const [saveLocally, setSaveLocally] = useState(false);
 

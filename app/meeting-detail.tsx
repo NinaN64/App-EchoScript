@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Alert, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -12,7 +12,6 @@ import { useMeetings } from '@/hooks/use-meetings';
 export default function MeetingDetailScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
   const params = useLocalSearchParams<{
       id: string;
       title: string;

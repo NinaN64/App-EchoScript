@@ -1,9 +1,3 @@
-/**
- * PauseMenu – a slide-up settings overlay.
- * Controls: Volume, Brightness, Font Size (sliders) + Auto-save, Haptics, Dark Mode (toggles).
- * Uses only built-in React Native primitives — no extra packages needed.
- */
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Animated,
@@ -21,15 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type PauseMenuSettings = {
-  volume: number;      // 0 – 1
-  brightness: number;  // 0 – 1
-  fontSize: number;    // 0 – 1  (small → large)
+  volume: number;
+  brightness: number;
+  fontSize: number;
   autoSave: boolean;
   haptics: boolean;
   darkMode: boolean;
@@ -42,10 +33,8 @@ type Props = {
   onSettingsChange: (s: PauseMenuSettings) => void;
 };
 
-// ─── Custom Slider ────────────────────────────────────────────────────────────
-
 type CustomSliderProps = {
-  value: number;         // 0-1
+  value: number;
   color: string;
   onChange: (v: number) => void;
 };
@@ -55,12 +44,11 @@ function CustomSlider({ value, color, onChange }: CustomSliderProps) {
   const posX = useRef(new Animated.Value(0)).current;
   const lastValue = useRef(value);
 
-  // Keep thumb in sync when value changes externally
   useEffect(() => {
     if (trackWidth > 0) {
       posX.setValue(value * trackWidth);
     }
-  }, [value, trackWidth]);
+  }, [value, trackWidth, posX]);
 
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -99,7 +87,7 @@ function CustomSlider({ value, color, onChange }: CustomSliderProps) {
     const w = e.nativeEvent.layout.width;
     setTrackWidth(w);
     posX.setValue(lastValue.current * w);
-  }, []);
+  }, [posX]);
 
   const fillWidth = trackWidth > 0
     ? posX.interpolate({ inputRange: [0, trackWidth], outputRange: [0, trackWidth], extrapolate: 'clamp' })
@@ -107,12 +95,9 @@ function CustomSlider({ value, color, onChange }: CustomSliderProps) {
 
   return (
     <View style={sliderStyles.wrap} onLayout={onLayout} {...panResponder.panHandlers}>
-      {/* Track background */}
       <View style={[sliderStyles.track, { backgroundColor: color + '33' }]}>
-        {/* Filled portion */}
         <Animated.View style={[sliderStyles.fill, { backgroundColor: color, width: fillWidth }]} />
       </View>
-      {/* Thumb */}
       <Animated.View
         style={[
           sliderStyles.thumb,
@@ -155,8 +140,6 @@ const sliderStyles = StyleSheet.create({
   },
 });
 
-// ─── Slider Row ───────────────────────────────────────────────────────────────
-
 type SliderRowProps = {
   icon: string;
   label: string;
@@ -180,8 +163,6 @@ function SliderRow({ icon, label, value, color, onChange }: SliderRowProps) {
     </View>
   );
 }
-
-// ─── Toggle Row ───────────────────────────────────────────────────────────────
 
 type ToggleRowProps = {
   icon: string;
@@ -209,8 +190,6 @@ function ToggleRow({ icon, label, value, color, borderColor, onToggle }: ToggleR
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 const ACCENT  = '#6C63FF';
 const AMBER   = '#F5A623';
 const GREEN   = '#34C759';
@@ -220,11 +199,9 @@ const INDIGO  = '#5E5CE6';
 export default function PauseMenu({ visible, onClose, settings, onSettingsChange }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
-  const tint = Colors[colorScheme].tint;
 
-  // Local copy while the menu is open
   const [local, setLocal] = useState<PauseMenuSettings>(settings);
-  useEffect(() => { if (visible) setLocal(settings); }, [visible]);
+  useEffect(() => { if (visible) setLocal(settings); }, [visible, settings]);
 
   const set = <K extends keyof PauseMenuSettings>(key: K, val: PauseMenuSettings[K]) => {
     const next = { ...local, [key]: val };
@@ -232,7 +209,6 @@ export default function PauseMenu({ visible, onClose, settings, onSettingsChange
     onSettingsChange(next);
   };
 
-  // Slide-up / fade-in animation
   const slideY   = useRef(new Animated.Value(700)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -248,7 +224,7 @@ export default function PauseMenu({ visible, onClose, settings, onSettingsChange
         Animated.timing(fadeAnim, { toValue: 0,   duration: 200, useNativeDriver: true }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, slideY, fadeAnim]);
 
   const cardBg  = isDark ? '#1e2224' : '#ffffff';
   const innerBg = isDark ? '#252a2d' : '#f5f7f9';
@@ -259,22 +235,18 @@ export default function PauseMenu({ visible, onClose, settings, onSettingsChange
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
       <StatusBar translucent backgroundColor="transparent" />
 
-      {/* ── Backdrop ── */}
       <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* ── Sheet ── */}
       <Animated.View style={[styles.sheetWrap, { transform: [{ translateY: slideY }] }]}>
         <View style={[styles.sheet, { backgroundColor: cardBg }]}>
           <SafeAreaView edges={['bottom']}>
 
-            {/* Drag handle */}
             <View style={styles.handleWrap}>
               <View style={[styles.handle, { backgroundColor: ACCENT + '66' }]} />
             </View>
 
-            {/* Header */}
             <View style={styles.header}>
               <View>
                 <ThemedText style={styles.headerTitle}>⏸  Pause Menu</ThemedText>
@@ -285,7 +257,6 @@ export default function PauseMenu({ visible, onClose, settings, onSettingsChange
               </TouchableOpacity>
             </View>
 
-            {/* ── Audio & Display ── */}
             <ThemedText style={[styles.sectionLabel, { color: textSub }]}>AUDIO & DISPLAY</ThemedText>
             <View style={[styles.card, { backgroundColor: innerBg, borderColor: divider }]}>
               <SliderRow icon="🔊" label="Volume"     value={local.volume}     color={ACCENT} onChange={v => set('volume', v)} />
@@ -295,7 +266,6 @@ export default function PauseMenu({ visible, onClose, settings, onSettingsChange
               <SliderRow icon="🔡" label="Font Size"  value={local.fontSize}   color={GREEN}  onChange={v => set('fontSize', v)} />
             </View>
 
-            {/* ── Preferences ── */}
             <ThemedText style={[styles.sectionLabel, { color: textSub }]}>PREFERENCES</ThemedText>
             <View style={[styles.card, { backgroundColor: innerBg, borderColor: divider }]}>
               <ToggleRow icon="💾" label="Auto-save recordings" value={local.autoSave} color={ACCENT}  borderColor={divider} onToggle={v => set('autoSave', v)} />
@@ -303,7 +273,6 @@ export default function PauseMenu({ visible, onClose, settings, onSettingsChange
               <ToggleRow icon="🌙" label="Dark mode"            value={local.darkMode} color={INDIGO}  borderColor="transparent" onToggle={v => set('darkMode', v)} />
             </View>
 
-            {/* Done button */}
             <TouchableOpacity
               onPress={onClose}
               activeOpacity={0.85}
@@ -319,10 +288,7 @@ export default function PauseMenu({ visible, onClose, settings, onSettingsChange
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  // Overlay
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -338,7 +304,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     paddingHorizontal: 20,
     paddingBottom: 8,
-    // Shadow for the sheet itself
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.18,
@@ -346,11 +311,9 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
 
-  // Handle
   handleWrap: { alignItems: 'center', paddingTop: 14, paddingBottom: 6 },
   handle: { width: 44, height: 5, borderRadius: 3 },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -370,7 +333,6 @@ const styles = StyleSheet.create({
   },
   closeBtnText: { fontSize: 14, fontWeight: '600' },
 
-  // Section labels
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -379,7 +341,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Card
   card: {
     borderRadius: 18,
     borderWidth: 1,
@@ -388,7 +349,6 @@ const styles = StyleSheet.create({
   },
   divLine: { height: 1, marginHorizontal: 16 },
 
-  // Slider row
   sliderRow: { paddingHorizontal: 16, paddingVertical: 12 },
   sliderHeader: {
     flexDirection: 'row',
@@ -407,7 +367,6 @@ const styles = StyleSheet.create({
   sliderLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
   pct: { fontSize: 14, fontWeight: '700', minWidth: 38, textAlign: 'right' },
 
-  // Toggle row
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -418,7 +377,6 @@ const styles = StyleSheet.create({
   },
   toggleLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
 
-  // Done button
   doneBtn: {
     borderRadius: 16,
     paddingVertical: 15,

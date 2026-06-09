@@ -15,7 +15,6 @@ export default function EditMeetingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
   const { getMeeting, updateMeeting, loading } = useMeetings();
 
   const [title, setTitle] = useState('');
@@ -37,7 +36,7 @@ export default function EditMeetingScreen() {
         router.back();
       }
     }
-  }, [id, getMeeting, loading]);
+  }, [id, getMeeting, loading, router]);
 
   const handleSave = async () => {
     const meeting = getMeeting(id);
@@ -82,6 +81,7 @@ export default function EditMeetingScreen() {
         setIsProcessingOcr(true);
         const imageUri = result.assets[0].uri;
 
+        // implementation of image recognition
         const ocrResult = await Tesseract.recognize(imageUri, 'eng', {
            errorHandler: (e) => console.log(e)
         });
