@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMeetings } from '@/hooks/use-meetings';
+import { generateSummary } from '@/services/ollama';
 
 export default function EditMeetingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,7 +23,9 @@ export default function EditMeetingScreen() {
   const [newParticipant, setNewParticipant] = useState('');
   const [notes, setNotes] = useState('');
   const [boardText, setBoardText] = useState('');
+  const [summary, setSummary] = useState('');
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   useEffect(() => {
     if (!loading && id) {
@@ -32,6 +35,7 @@ export default function EditMeetingScreen() {
         setParticipants(meeting.participantNames || []);
         setNotes(meeting.notes || '');
         setBoardText(meeting.boardText || '');
+        setSummary(meeting.summary || '');
       } else {
         router.back();
       }
@@ -51,6 +55,7 @@ export default function EditMeetingScreen() {
       boardText,
       participantNames,
       participants: participantNames.length,
+      summary: summary || undefined,
     });
 
     if (success) {
@@ -61,6 +66,41 @@ export default function EditMeetingScreen() {
       } else {
         Alert.alert('Error', 'Failed to save meeting.');
       }
+    }
+  };
+
+  // ollama implementation
+  const handleGenerateSummary = async () => {
+    if (!notes.trim() && !boardText.trim()) {
+      if (Platform.OS === 'web') {
+        window.alert('No transcript or notes available to summarize.');
+      } else {
+        Alert.alert('Cannot Summarize', 'There is no meeting transcript or notes to summarize.');
+      }
+      return;
+    }
+
+    setIsGeneratingSummary(true);
+    try {
+      const generated = await generateSummary(notes, boardText);
+      setSummary(generated);
+      if (Platform.OS === 'web') {
+        window.alert('AI Summary generated successfully!');
+      } else {
+        Alert.alert('Success', 'AI Summary generated successfully!');
+      }
+    } catch (e) {
+      console.error(e);
+      if (Platform.OS === 'web') {
+        window.alert('Ollama generation failed. Make sure Ollama is serving and the model is loaded correctly.');
+      } else {
+        Alert.alert(
+          'Generation Failed',
+          'Could not get summary from local Ollama. Please check your settings and make sure Ollama is running.'
+        );
+      }
+    } finally {
+      setIsGeneratingSummary(false);
     }
   };
 
@@ -189,6 +229,27 @@ export default function EditMeetingScreen() {
               value={boardText}
               onChangeText={setBoardText}
               placeholder="Board Text / Notes..."
+              placeholderTextColor={Colors[colorScheme].textMuted}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* ollama implementation */}
+          <View style={styles.inputGroup}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <ThemedText style={styles.label}>AI SUMMARY (OLLAMA)</ThemedText>
+              <TouchableOpacity onPress={handleGenerateSummary} disabled={isGeneratingSummary}>
+                <ThemedText style={{ color: tint, fontSize: 13, fontWeight: '600' }}>
+                  {isGeneratingSummary ? '⌛ Generating...' : '✨ Generate Summary'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={[styles.input, styles.textArea, { backgroundColor: inputBg, borderColor, color: textColor }]}
+              value={summary}
+              onChangeText={setSummary}
+              placeholder="Generate or write an AI summary of the meeting..."
               placeholderTextColor={Colors[colorScheme].textMuted}
               multiline
               textAlignVertical="top"

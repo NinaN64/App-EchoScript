@@ -14,6 +14,7 @@ export type Meeting = {
   minutes?: string;
   boardText?: string;
   imageUris?: string[];
+  summary?: string; // ollama implementation
 };
 
 const STORAGE_KEY = 'echoscript_meetings';

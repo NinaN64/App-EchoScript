@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Keyboard,
@@ -23,14 +24,15 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMeetings } from '@/hooks/use-meetings';
+import { generateSummary } from '@/services/ollama';
 
 // implementation of speech-to-text fallback
 let ExpoSpeechRecognitionModule: any = {
-  start: () => {},
-  stop: () => {},
+  start: () => { },
+  stop: () => { },
   requestPermissionsAsync: async () => ({ status: 'denied' }),
 };
-let useSpeechRecognitionEvent: any = () => {};
+let useSpeechRecognitionEvent: any = () => { };
 let isSpeechRecognitionSupported = false;
 
 try {
@@ -80,19 +82,25 @@ type SaveModalProps = {
   visible: boolean;
   durationSeconds: number;
   colorScheme: 'light' | 'dark';
-  onSave: (title: string) => void;
+  transcript: string;
+  notes: string;
+  onSave: (title: string, summary?: string) => void;
   onDiscard: () => void;
 };
 
-function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }: SaveModalProps) {
+function SaveModal({ visible, durationSeconds, colorScheme, transcript, notes, onSave, onDiscard }: SaveModalProps) {
   const tint = Colors[colorScheme].tint;
   const cardBg = Colors[colorScheme].card;
   const overlaySlide = useRef(new Animated.Value(300)).current;
   const [title, setTitle] = useState('');
+  const [summary, setSummary] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setTitle('');
+      setSummary('');
+      setIsGenerating(false);
       Animated.spring(overlaySlide, {
         toValue: 0,
         useNativeDriver: true,
@@ -108,6 +116,36 @@ function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }:
     }
   }, [visible, overlaySlide]);
 
+  // ollama implementation
+  const handleGenerateSummary = async () => {
+    if (!transcript.trim() && !notes.trim()) {
+      if (Platform.OS === 'web') {
+        window.alert('No transcript or notes available to summarize.');
+      } else {
+        Alert.alert('Cannot Summarize', 'There is no meeting transcript or notes to summarize.');
+      }
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const generated = await generateSummary(transcript, notes);
+      setSummary(generated);
+    } catch (e) {
+      console.error(e);
+      if (Platform.OS === 'web') {
+        window.alert('Ollama generation failed. Make sure Ollama is serving and the model is loaded correctly.');
+      } else {
+        Alert.alert(
+          'Generation Failed',
+          'Could not get summary from local Ollama. Please check your settings and make sure Ollama is running.'
+        );
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleSave = () => {
     const trimmed = title.trim();
     if (!trimmed) {
@@ -115,7 +153,7 @@ function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }:
       return;
     }
     Keyboard.dismiss();
-    onSave(trimmed);
+    onSave(trimmed, summary ? summary.trim() : undefined);
   };
 
   return (
@@ -149,6 +187,52 @@ function SaveModal({ visible, durationSeconds, colorScheme, onSave, onDiscard }:
               onSubmitEditing={handleSave}
               autoFocus
             />
+          </View>
+
+          {/* ollama implementation */}
+          <View style={styles.summarySection}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <ThemedText style={styles.summaryLabel}>AI SUMMARY (OLLAMA)</ThemedText>
+              {summary ? (
+                <TouchableOpacity onPress={handleGenerateSummary} disabled={isGenerating}>
+                  <ThemedText style={{ color: tint, fontSize: 12, fontWeight: '600' }}>
+                    {isGenerating ? 'Regenerating...' : '🔄 Regenerate'}
+                  </ThemedText>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {isGenerating ? (
+              <View style={[styles.summaryBox, { borderColor: Colors[colorScheme].border, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="small" color={tint} />
+                <ThemedText style={{ fontSize: 13, color: Colors[colorScheme].textMuted, marginTop: 8 }}>
+                  Generating summary with local Ollama...
+                </ThemedText>
+              </View>
+            ) : summary ? (
+              <View style={[styles.inputWrapper, { borderColor: Colors[colorScheme].border, backgroundColor: Colors[colorScheme].background }]}>
+                <TextInput
+                  style={[styles.summaryInput, { color: Colors[colorScheme].text }]}
+                  placeholder="Summary text..."
+                  placeholderTextColor={Colors[colorScheme].textMuted}
+                  value={summary}
+                  onChangeText={setSummary}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.generateBtn, { borderColor: tint, backgroundColor: tint + '12' }]}
+                onPress={handleGenerateSummary}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={{ color: tint, fontWeight: '600', fontSize: 14 }}>
+                  ✨ Generate AI Summary
+                </ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.sheetButtons}>
@@ -458,7 +542,7 @@ export default function NewMeetingScreen() {
     });
   };
 
-  const handleSave = async (title: string) => {
+  const handleSave = async (title: string, summary?: string) => {
     const fullTranscript = [transcript, interimText].filter(Boolean).join(' ');
     const combinedNotes = manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText;
 
@@ -474,6 +558,7 @@ export default function NewMeetingScreen() {
       createdAt: Date.now(),
       boardText: combinedNotes,
       imageUris,
+      summary,
     };
     const ok = await saveMeeting(meeting);
 
@@ -520,11 +605,23 @@ export default function NewMeetingScreen() {
 
   const handleAddBoard = async () => {
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
         allowsEditing: true,
         quality: 0.8,
-      });
+      };
+
+      let result;
+      if (Platform.OS === 'web') {
+        result = await ImagePicker.launchImageLibraryAsync(options);
+      } else {
+        try {
+          result = await ImagePicker.launchCameraAsync(options);
+        } catch (cameraErr) {
+          console.log('Camera not available, falling back to library', cameraErr);
+          result = await ImagePicker.launchImageLibraryAsync(options);
+        }
+      }
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setIsProcessingOcr(true);
@@ -537,11 +634,19 @@ export default function NewMeetingScreen() {
         });
 
         setBoardText((prev) => (prev ? prev + '\n\n' + ocrResult.data.text : ocrResult.data.text));
-        Alert.alert('OCR Success', 'Text extracted from whiteboard!');
+        if (Platform.OS === 'web') {
+          window.alert('Text extracted successfully!');
+        } else {
+          Alert.alert('OCR Success', 'Text extracted from whiteboard!');
+        }
       }
     } catch (e) {
       console.error('OCR Error', e);
-      Alert.alert('OCR Failed', 'Could not extract text from image.');
+      if (Platform.OS === 'web') {
+        window.alert('Could not extract text from image.');
+      } else {
+        Alert.alert('OCR Failed', 'Could not extract text from image.');
+      }
     } finally {
       setIsProcessingOcr(false);
     }
@@ -611,7 +716,7 @@ export default function NewMeetingScreen() {
           </View>
         </View>
 
-        {isRecording ? (
+        {isRecording && (
           <View style={[styles.transcriptCard, { backgroundColor: cardBg, borderColor }]}>
             <View style={styles.transcriptHeader}>
               <View style={[styles.liveDot, { backgroundColor: Colors[colorScheme].danger }]} />
@@ -641,38 +746,40 @@ export default function NewMeetingScreen() {
               )}
             </ScrollView>
           </View>
-        ) : (
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]} onPress={handleOpenParticipants}>
-              <ThemedText style={{ fontSize: 20 }}>👥</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
-                {participantNames.length > 0 ? `${participantNames.length} Added` : 'Add Participants'}
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]}
-              onPress={handleAddBoard}
-              disabled={isProcessingOcr}
-            >
-              <ThemedText style={{ fontSize: 20 }}>{isProcessingOcr ? '⏳' : '🪧'}</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
-                {isProcessingOcr ? 'Processing...' : 'Add Board'}
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]} onPress={handleOpenNotes}>
-              <ThemedText style={{ fontSize: 20 }}>📝</ThemedText>
-              <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
-                {manualNotes ? 'Notes Added' : 'Add Notes'}
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
         )}
+
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]} onPress={handleOpenParticipants}>
+            <ThemedText style={{ fontSize: 20 }}>👥</ThemedText>
+            <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
+              {participantNames.length > 0 ? `${participantNames.length} Added` : 'Add Participants'}
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]}
+            onPress={handleAddBoard}
+            disabled={isProcessingOcr}
+          >
+            <ThemedText style={{ fontSize: 20 }}>{isProcessingOcr ? '⏳' : '🪧'}</ThemedText>
+            <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
+              {isProcessingOcr ? 'Processing...' : `Add Board${imageUris.length > 0 ? ` (${imageUris.length})` : ''}`}
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.quickBtn, { borderColor: Colors[colorScheme].border }]} onPress={handleOpenNotes}>
+            <ThemedText style={{ fontSize: 20 }}>📝</ThemedText>
+            <ThemedText style={[styles.quickBtnLabel, { color: Colors[colorScheme].textMuted }]}>
+              {manualNotes ? 'Notes Added' : 'Add Notes'}
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
       </ThemedView>
 
       <SaveModal
         visible={showSaveModal}
         durationSeconds={stoppedAt}
         colorScheme={colorScheme}
+        transcript={[transcript, interimText].filter(Boolean).join(' ')}
+        notes={manualNotes ? (boardText ? `${boardText}\n\nManual Notes:\n${manualNotes}` : manualNotes) : boardText}
         onSave={handleSave}
         onDiscard={handleDiscard}
       />
@@ -859,5 +966,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     marginBottom: 4,
+  },
+  summarySection: {
+    gap: 6,
+    width: '100%',
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#888',
+    letterSpacing: 0.5,
+  },
+  summaryBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    height: 100,
+  },
+  summaryInput: {
+    fontSize: 14,
+    lineHeight: 20,
+    paddingVertical: 8,
+    minHeight: 80,
+    maxHeight: 140,
+  },
+  generateBtn: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

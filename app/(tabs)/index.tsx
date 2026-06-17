@@ -1,16 +1,19 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, TouchableOpacity, View, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function HomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
+  const [showInfo, setShowInfo] = useState(false);
 
   const secondaryBg = isDark ? '#1e2022' : '#f0f0f5';
   const secondaryBorder = isDark ? '#2c2f31' : '#dddde3';
@@ -19,6 +22,14 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
+        <TouchableOpacity
+          style={styles.infoIconButton}
+          onPress={() => setShowInfo(true)}
+          activeOpacity={0.7}
+        >
+          <IconSymbol name="info.circle" size={24} color={Colors[colorScheme].icon} />
+        </TouchableOpacity>
+
         <View style={styles.header}>
           <ThemedText type="title" style={styles.appName}>
             EchoScript
@@ -56,6 +67,81 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </ThemedView>
+
+      <Modal
+        visible={showInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInfo(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBg} 
+            activeOpacity={1} 
+            onPress={() => setShowInfo(false)} 
+          />
+          <View style={[styles.infoCardModal, { backgroundColor: Colors[colorScheme].card, borderColor: Colors[colorScheme].border }]}>
+            <ThemedText style={styles.modalTitle}>About EchoScript</ThemedText>
+            <ThemedText style={[styles.modalDesc, { color: Colors[colorScheme].textMuted }]}>
+              EchoScript is your local-first meeting assistant designed to capture, organize, and summarize your meetings.
+            </ThemedText>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300, marginVertical: 16 }}>
+              <View style={styles.featureRow}>
+                <View style={styles.featureTextCol}>
+                  <ThemedText style={styles.featureTitle}>Live Transcription</ThemedText>
+                  <ThemedText style={[styles.featureDesc, { color: Colors[colorScheme].textMuted }]}>
+                    Transcribe audio in real-time using built-in speech engines.
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={styles.featureRow}>
+                <View style={styles.featureTextCol}>
+                  <ThemedText style={styles.featureTitle}>Whiteboard OCR</ThemedText>
+                  <ThemedText style={[styles.featureDesc, { color: Colors[colorScheme].textMuted }]}>
+                    Upload whiteboard photos during or after meetings to extract text dynamically.
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={styles.featureRow}>
+                <View style={styles.featureTextCol}>
+                  <ThemedText style={styles.featureTitle}>Participants & Notes</ThemedText>
+                  <ThemedText style={[styles.featureDesc, { color: Colors[colorScheme].textMuted }]}>
+                    Keep track of meeting attendees and take custom manual notes.
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={styles.featureRow}>
+                <View style={styles.featureTextCol}>
+                  <ThemedText style={styles.featureTitle}>AI Summary with Ollama</ThemedText>
+                  <ThemedText style={[styles.featureDesc, { color: Colors[colorScheme].textMuted }]}>
+                    Generate high-quality summaries of transcriptions using local models (e.g., Llama3).
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={styles.featureRow}>
+                <View style={styles.featureTextCol}>
+                  <ThemedText style={styles.featureTitle}>Local Configuration</ThemedText>
+                  <ThemedText style={[styles.featureDesc, { color: Colors[colorScheme].textMuted }]}>
+                    Fully configure custom Ollama endpoint URLs and local models inside settings.
+                  </ThemedText>
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.closeButton, { backgroundColor: Colors[colorScheme].tint }]}
+              onPress={() => setShowInfo(false)}
+            >
+              <ThemedText style={styles.closeButtonText}>Got it</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -84,51 +170,9 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
   },
-  illustration: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  illustrationIcon: {
-    fontSize: 56,
-  },
-  illustrationText: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
   buttonGroup: {
     width: '100%',
     gap: 14,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 50,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  primaryIcon: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '300',
-    lineHeight: 24,
-  },
-  primaryLabel: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
   secondaryButton: {
     flexDirection: 'row',
@@ -139,12 +183,75 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     gap: 10,
   },
-  secondaryIcon: {
-    fontSize: 18,
-  },
   secondaryLabel: {
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  infoIconButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+    zIndex: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  infoCardModal: {
+    width: '100%',
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  modalDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  featureTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  featureTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  featureDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  closeButton: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -8,23 +8,25 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMeetings } from '@/hooks/use-meetings';
+import { generateSummary } from '@/services/ollama';
 
 export default function MeetingDetailScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const params = useLocalSearchParams<{
-      id: string;
-      title: string;
-      date: string;
-      duration: string;
-      participants: string;
-      notes: string;
-      participantNames: string;
-      minutes?: string;
-      boardText?: string;
-    }>();
+    id: string;
+    title: string;
+    date: string;
+    duration: string;
+    participants: string;
+    notes: string;
+    participantNames: string;
+    minutes?: string;
+    boardText?: string;
+  }>();
 
-  const { getMeeting, deleteMeeting, reload } = useMeetings();
+  const { getMeeting, deleteMeeting, reload, updateMeeting } = useMeetings();
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -42,6 +44,46 @@ export default function MeetingDetailScreen() {
   const notes = meeting?.notes ?? params.notes;
   const participantNames = meeting?.participantNames ? JSON.stringify(meeting.participantNames) : params.participantNames;
   const boardText = meeting?.boardText ?? params.boardText;
+  const summary = meeting?.summary;
+
+  // ollama implementation
+  const handleGenerateSummary = async () => {
+    if (!meeting) return;
+    if (!notes.trim() && !boardText.trim()) {
+      if (Platform.OS === 'web') {
+        window.alert('No transcript or notes available to summarize.');
+      } else {
+        Alert.alert('Cannot Summarize', 'There is no meeting transcript or notes to summarize.');
+      }
+      return;
+    }
+
+    setIsGeneratingSummary(true);
+    try {
+      const generated = await generateSummary(notes, boardText);
+      await updateMeeting({
+        ...meeting,
+        summary: generated,
+      });
+      if (Platform.OS === 'web') {
+        window.alert('AI Summary generated successfully!');
+      } else {
+        Alert.alert('Success', 'AI Summary generated successfully!');
+      }
+    } catch (e) {
+      console.error(e);
+      if (Platform.OS === 'web') {
+        window.alert('Ollama generation failed. Make sure Ollama is serving and the model is loaded correctly.');
+      } else {
+        Alert.alert(
+          'Generation Failed',
+          'Could not get summary from local Ollama. Please check your settings and make sure Ollama is running.'
+        );
+      }
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
 
   const confirmDelete = () => {
     if (Platform.OS === 'web') {
@@ -124,6 +166,45 @@ export default function MeetingDetailScreen() {
             ))}
           </View>
 
+          {/* ollama implementation */}
+          {summary ? (
+            <>
+              <ThemedText style={[styles.sectionLabel, { color: metaColor }]}>✨ AI SUMMARY (OLLAMA)</ThemedText>
+              <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor }]}>
+                <ThemedText style={[styles.notesText, { color: Colors[colorScheme].text }]}>
+                  {summary}
+                </ThemedText>
+              </View>
+            </>
+          ) : (
+            <>
+              <ThemedText style={[styles.sectionLabel, { color: metaColor }]}>✨ AI SUMMARY (OLLAMA)</ThemedText>
+              <View style={[styles.notesCard, { backgroundColor: cardBg, borderColor, padding: 16, alignItems: 'center', gap: 12 }]}>
+                {isGeneratingSummary ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator size="small" color={tint} />
+                    <ThemedText style={{ color: metaColor, fontSize: 14 }}>Generating summary with local Ollama...</ThemedText>
+                  </View>
+                ) : (
+                  <>
+                    <ThemedText style={{ color: metaColor, fontSize: 14, textAlign: 'center' }}>
+                      No AI summary has been generated for this meeting yet.
+                    </ThemedText>
+                    <TouchableOpacity
+                      style={[styles.generateBtn, { backgroundColor: tint }]}
+                      onPress={handleGenerateSummary}
+                      activeOpacity={0.8}
+                    >
+                      <ThemedText style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                        ✨ Generate AI Summary
+                      </ThemedText>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </>
+          )}
+
           {parsedParticipants.length > 0 && (
             <>
               <ThemedText style={[styles.sectionLabel, { color: metaColor }]}>
@@ -184,7 +265,7 @@ export default function MeetingDetailScreen() {
             onPress={confirmDelete}
             activeOpacity={0.8}
           >
-            <ThemedText style={[styles.deleteLabel, { color: Colors[colorScheme].danger }]}>🗑  Delete Meeting</ThemedText>
+            <ThemedText style={[styles.deleteLabel, { color: Colors[colorScheme].danger }]}>Delete Meeting</ThemedText>
           </TouchableOpacity>
         </ScrollView>
       </ThemedView>
@@ -303,4 +384,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   deleteLabel: { fontSize: 16, fontWeight: '700' },
+  generateBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

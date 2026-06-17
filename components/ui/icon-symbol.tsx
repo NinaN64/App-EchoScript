@@ -8,9 +8,17 @@ type IconSymbolName = keyof typeof MAPPING;
 
 const MAPPING = {
   'house.fill': 'home',
+  'house': 'home',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'clock.fill': 'access-time',
+  'clock': 'access-time',
+  'mic.fill': 'mic',
+  'mic': 'mic-none',
+  'gearshape.fill': 'settings',
+  'gearshape': 'settings',
+  'info.circle': 'info-outline',
 } as IconMapping;
 
 export function IconSymbol({
